@@ -26,16 +26,19 @@ export const useEntryStore = create<EntryState>((set, get) => ({
 
   loadEntries: async () => {
     set({ loading: true })
-    const entries = await db.entries.orderBy('timestamp').reverse().toArray()
+    const entries = await db.entries.toArray()
+    // Sort by timestamp descending
+    entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     set({ entries, loading: false })
   },
 
   loadTodayEntries: async () => {
     const startOfDay = getStartOfDay(new Date())
-    const todayEntries = await db.entries
-      .where('timestamp')
-      .aboveOrEqual(startOfDay)
-      .toArray()
+    const allEntries = await db.entries.toArray()
+    // Filter in JS to avoid Date indexing issues
+    const todayEntries = allEntries.filter(
+      (entry) => new Date(entry.timestamp).getTime() >= startOfDay.getTime()
+    )
     set({ todayEntries })
   },
 
@@ -46,7 +49,9 @@ export const useEntryStore = create<EntryState>((set, get) => ({
       timestamp: new Date(),
     }
     await db.entries.add(entry)
-    await get().loadTodayEntries()
+    // Update todayEntries immediately for responsive UI
+    const currentToday = get().todayEntries
+    set({ todayEntries: [...currentToday, entry] })
     return entry
   },
 
