@@ -1,32 +1,28 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
-import { useEntryStore } from '../stores/entryStore'
+import { useEventStore } from '../stores/eventStore'
 import { hapticTap, hapticSuccess } from '../utils/haptics'
-import type { SubItem } from '../types'
+import type { Activity } from '../types'
 
 export function SessionScreen() {
   const { activityId } = useParams<{ activityId: string }>()
   const navigate = useNavigate()
-  const { activities, getSubItems } = useActivityStore()
-  const { todayEntries, addEntry } = useEntryStore()
+  const { activities, getChildren } = useActivityStore()
+  const { todayEvents, addEvent } = useEventStore()
   const [sessionCounts, setSessionCounts] = useState<Record<string, number>>({})
 
   const activity = activities.find((a) => a.id === activityId)
-  const subItems = activityId ? getSubItems(activityId) : []
+  const childActivities = activityId ? getChildren(activityId) : []
 
   useEffect(() => {
-    // Calculate today's counts for each sub-item
+    // Calculate today's counts for each child activity
     const counts: Record<string, number> = {}
-    todayEntries
-      .filter((e) => e.activityId === activityId)
-      .forEach((e) => {
-        if (e.subItemId) {
-          counts[e.subItemId] = (counts[e.subItemId] || 0) + 1
-        }
-      })
+    childActivities.forEach((child) => {
+      counts[child.id] = todayEvents.filter((e) => e.activityId === child.id).length
+    })
     setSessionCounts(counts)
-  }, [todayEntries, activityId])
+  }, [todayEvents, childActivities])
 
   if (!activity) {
     return (
@@ -36,20 +32,15 @@ export function SessionScreen() {
     )
   }
 
-  const handleSubItemTap = async (subItem: SubItem) => {
+  const handleChildTap = async (child: Activity) => {
     hapticTap()
 
-    if (activity.trackingType === 'sub-number') {
-      // For sub-number, we'd show a number input - for now just log with value 1
-      await addEntry({ activityId: activity.id, subItemId: subItem.id, value: 1 })
-    } else {
-      await addEntry({ activityId: activity.id, subItemId: subItem.id })
-    }
+    await addEvent({ activityId: child.id })
 
     hapticSuccess()
     setSessionCounts((prev) => ({
       ...prev,
-      [subItem.id]: (prev[subItem.id] || 0) + 1,
+      [child.id]: (prev[child.id] || 0) + 1,
     }))
   }
 
@@ -75,20 +66,20 @@ export function SessionScreen() {
         <div className="w-16" /> {/* Spacer for centering */}
       </header>
 
-      {/* Sub-items grid */}
+      {/* Child activities grid */}
       <div className="grid grid-cols-2 gap-4 p-4">
-        {subItems.map((item) => {
-          const count = sessionCounts[item.id] || 0
+        {childActivities.map((child) => {
+          const count = sessionCounts[child.id] || 0
           return (
             <button
-              key={item.id}
-              onClick={() => handleSubItemTap(item)}
+              key={child.id}
+              onClick={() => handleChildTap(child)}
               className="flex flex-col items-center justify-center gap-2 p-6 rounded-2xl
                 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all
                 relative"
             >
-              <span className="text-4xl">{item.emoji}</span>
-              <span className="text-lg font-medium">{item.name}</span>
+              <span className="text-4xl">{child.emoji}</span>
+              <span className="text-lg font-medium">{child.name}</span>
               {count > 0 && (
                 <span
                   className="absolute top-2 right-2 bg-blue-500 text-white

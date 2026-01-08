@@ -1,15 +1,15 @@
 import { Header } from '../components/layout/Header'
-import { useEntryStore } from '../stores/entryStore'
+import { useEventStore } from '../stores/eventStore'
 import { useActivityStore } from '../stores/activityStore'
 
 export function StatsPage() {
-  const { entries } = useEntryStore()
+  const { events } = useEventStore()
   const { activities } = useActivityStore()
 
   const getActivityStats = () => {
     const stats: Record<string, number> = {}
-    entries.forEach((entry) => {
-      stats[entry.activityId] = (stats[entry.activityId] || 0) + 1
+    events.forEach((event) => {
+      stats[event.activityId] = (stats[event.activityId] || 0) + 1
     })
     return stats
   }
@@ -39,7 +39,7 @@ export function StatsPage() {
           </div>
         </div>
 
-        {entries.length === 0 && (
+        {events.length === 0 && (
           <div className="text-center text-slate-400 py-8">
             <span className="text-4xl block mb-2">📈</span>
             Start tracking to see your stats!

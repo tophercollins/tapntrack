@@ -1,17 +1,15 @@
 import { create } from 'zustand'
-import type { Activity, SubItem } from '../types'
+import type { Activity } from '../types'
 
 type LoggerState =
   | { type: 'closed' }
-  | { type: 'sub-select'; activity: Activity }
-  | { type: 'number'; activity: Activity; subItem?: SubItem }
+  | { type: 'number'; activity: Activity }
   | { type: 'duration'; activity: Activity; startTime: number }
   | { type: 'confirmation'; message: string }
 
 interface UIState {
   logger: LoggerState
-  openSubSelect: (activity: Activity) => void
-  openNumber: (activity: Activity, subItem?: SubItem) => void
+  openNumber: (activity: Activity) => void
   openDuration: (activity: Activity) => void
   showConfirmation: (message: string) => void
   closeLogger: () => void
@@ -20,12 +18,8 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   logger: { type: 'closed' },
 
-  openSubSelect: (activity) => {
-    set({ logger: { type: 'sub-select', activity } })
-  },
-
-  openNumber: (activity, subItem) => {
-    set({ logger: { type: 'number', activity, subItem } })
+  openNumber: (activity) => {
+    set({ logger: { type: 'number', activity } })
   },
 
   openDuration: (activity) => {

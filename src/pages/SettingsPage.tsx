@@ -7,9 +7,8 @@ export function SettingsPage() {
 
   const handleClearData = async () => {
     if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-      await db.entries.clear()
+      await db.events.clear()
       await db.activities.clear()
-      await db.subItems.clear()
       await loadActivities()
       window.location.reload()
     }

@@ -7,22 +7,22 @@ import { StatsPage } from './pages/StatsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { SessionScreen } from './pages/SessionScreen'
 import { ActivityEditorPage } from './pages/ActivityEditorPage'
-import { SubItemEditorPage } from './pages/SubItemEditorPage'
+import { ChildActivitiesPage } from './pages/ChildActivitiesPage'
 import { useActivityStore } from './stores/activityStore'
-import { useEntryStore } from './stores/entryStore'
+import { useEventStore } from './stores/eventStore'
 import { seedDatabase } from './db/seed'
 
 function AppContent() {
   const location = useLocation()
   const { loadActivities } = useActivityStore()
-  const { loadTodayEntries, loadEntries } = useEntryStore()
+  const { loadTodayEvents, loadEvents } = useEventStore()
 
   useEffect(() => {
     const init = async () => {
       await seedDatabase()
       await loadActivities()
-      await loadTodayEntries()
-      await loadEntries()
+      await loadTodayEvents()
+      await loadEvents()
     }
     init()
   }, [])
@@ -41,7 +41,7 @@ function AppContent() {
         <Route path="/session/:activityId" element={<SessionScreen />} />
         <Route path="/activity/new" element={<ActivityEditorPage />} />
         <Route path="/activity/:activityId/edit" element={<ActivityEditorPage />} />
-        <Route path="/activity/:activityId/subitems" element={<SubItemEditorPage />} />
+        <Route path="/activity/:activityId/children" element={<ChildActivitiesPage />} />
       </Routes>
       {!hideBottomNav && <BottomNav />}
       <Logger />

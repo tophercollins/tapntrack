@@ -14,7 +14,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { useActivityStore } from '../../stores/activityStore'
-import { useEntryStore } from '../../stores/entryStore'
+import { useEventStore } from '../../stores/eventStore'
 import { useUIStore } from '../../stores/uiStore'
 import { SortableEmojiButton } from '../ui/SortableEmojiButton'
 import { hapticTap, hapticSuccess } from '../../utils/haptics'
@@ -22,11 +22,12 @@ import type { Activity } from '../../types'
 
 export function ActivityGrid() {
   const navigate = useNavigate()
-  const { activities, reorderActivities } = useActivityStore()
-  const { todayEntries } = useEntryStore()
-  const { addEntry } = useEntryStore()
+  const { getBaseActivities, reorderActivities } = useActivityStore()
+  const { todayEvents, addEvent } = useEventStore()
   const { openNumber, openDuration, showConfirmation } = useUIStore()
   const [isDragMode, setIsDragMode] = useState(false)
+
+  const baseActivities = getBaseActivities()
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -38,7 +39,7 @@ export function ActivityGrid() {
   )
 
   const getCountForActivity = (activityId: string) => {
-    return todayEntries.filter((e) => e.activityId === activityId).length
+    return todayEvents.filter((e) => e.activityId === activityId).length
   }
 
   const handleActivityTap = async (activity: Activity) => {
@@ -48,13 +49,12 @@ export function ActivityGrid() {
 
     switch (activity.trackingType) {
       case 'tap':
-        await addEntry({ activityId: activity.id })
+        await addEvent({ activityId: activity.id })
         hapticSuccess()
         showConfirmation(`${activity.emoji} Logged!`)
         break
 
-      case 'sub-select':
-      case 'sub-number':
+      case 'session':
         navigate(`/session/${activity.id}`)
         break
 
@@ -81,11 +81,11 @@ export function ActivityGrid() {
     const { active, over } = event
 
     if (over && active.id !== over.id) {
-      const oldIndex = activities.findIndex((a) => a.id === active.id)
-      const newIndex = activities.findIndex((a) => a.id === over.id)
+      const oldIndex = baseActivities.findIndex((a) => a.id === active.id)
+      const newIndex = baseActivities.findIndex((a) => a.id === over.id)
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        const newOrder = arrayMove(activities, oldIndex, newIndex)
+        const newOrder = arrayMove(baseActivities, oldIndex, newIndex)
         reorderActivities(newOrder.map((a) => a.id))
         hapticTap()
       }
@@ -102,7 +102,7 @@ export function ActivityGrid() {
   return (
     <div className="relative">
       {/* Edit mode toggle */}
-      {activities.length > 0 && (
+      {baseActivities.length > 0 && (
         <div className="flex justify-end px-4 pb-2">
           <button
             onClick={() => setIsDragMode(!isDragMode)}
@@ -124,11 +124,11 @@ export function ActivityGrid() {
         onDragStart={handleDragStart}
       >
         <SortableContext
-          items={activities.map((a) => a.id)}
+          items={baseActivities.map((a) => a.id)}
           strategy={rectSortingStrategy}
         >
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 px-4 pb-4">
-            {activities.map((activity) => (
+            {baseActivities.map((activity) => (
               <SortableEmojiButton
                 key={activity.id}
                 id={activity.id}

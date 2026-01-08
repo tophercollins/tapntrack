@@ -1,11 +1,11 @@
 import { Header } from '../components/layout/Header'
 import { ActivityGrid } from '../components/activities/ActivityGrid'
-import { useEntryStore } from '../stores/entryStore'
+import { useEventStore } from '../stores/eventStore'
 
 export function HomePage() {
-  const { todayEntries } = useEntryStore()
+  const { todayEvents } = useEventStore()
 
-  const todayCount = todayEntries.length
+  const todayCount = todayEvents.length
   const subtitle = todayCount > 0
     ? `${todayCount} ${todayCount === 1 ? 'activity' : 'activities'} logged today`
     : 'Tap to start tracking'

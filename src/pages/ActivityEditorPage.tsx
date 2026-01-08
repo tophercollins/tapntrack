@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { db } from '../db/database'
-import type { Activity, TrackingType, SubItem } from '../types'
+import type { Activity, TrackingType } from '../types'
 
 const trackingTypes: { type: TrackingType; label: string; icon: string; description: string }[] = [
   { type: 'tap', label: 'Quick Tap', icon: '👆', description: 'One tap = logged' },
   { type: 'number', label: 'Counter', icon: '🔢', description: 'Enter a number each time' },
   { type: 'duration', label: 'Timer', icon: '⏱️', description: 'Track time spent' },
-  { type: 'sub-select', label: 'Session', icon: '📋', description: 'Multiple sub-items to tap' },
+  { type: 'session', label: 'Session', icon: '📋', description: 'Multiple sub-activities to tap' },
 ]
 
 const defaultColors = [
@@ -19,11 +19,12 @@ const defaultColors = [
 export function ActivityEditorPage() {
   const { activityId } = useParams<{ activityId: string }>()
   const navigate = useNavigate()
-  const { activities, loadActivities } = useActivityStore()
+  const { activities, getChildren, loadActivities } = useActivityStore()
 
   // activityId will be "new" for new activities, or an actual ID for editing
   const isEditing = activityId !== undefined && activityId !== 'new'
   const existingActivity = isEditing ? activities.find((a) => a.id === activityId) : undefined
+  const childActivities = isEditing && activityId ? getChildren(activityId) : []
 
   const [emoji, setEmoji] = useState(existingActivity?.emoji || '')
   const [name, setName] = useState(existingActivity?.name || '')
@@ -31,24 +32,14 @@ export function ActivityEditorPage() {
     existingActivity?.trackingType || 'tap'
   )
   const [unit, setUnit] = useState(existingActivity?.unit || '')
-  const [subItems, setSubItems] = useState<SubItem[]>([])
   const emojiInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (activityId) {
-      db.subItems
-        .where('activityId')
-        .equals(activityId)
-        .sortBy('sortOrder')
-        .then(setSubItems)
-    }
-  }, [activityId])
 
   const handleSave = async () => {
     if (!emoji || !name) return
 
-    const id = activityId || crypto.randomUUID()
-    const color = existingActivity?.color || defaultColors[activities.length % defaultColors.length]
+    const id = isEditing && activityId ? activityId : crypto.randomUUID()
+    const baseActivities = activities.filter((a) => a.isBase)
+    const color = existingActivity?.color || defaultColors[baseActivities.length % defaultColors.length]
 
     const activity: Activity = {
       id,
@@ -58,7 +49,9 @@ export function ActivityEditorPage() {
       trackingType,
       unit: unit || undefined,
       createdAt: existingActivity?.createdAt || new Date(),
-      sortOrder: existingActivity?.sortOrder ?? activities.length,
+      sortOrder: existingActivity?.sortOrder ?? baseActivities.length,
+      isBase: true,
+      parentId: undefined,
     }
 
     if (isEditing) {
@@ -68,24 +61,33 @@ export function ActivityEditorPage() {
     }
 
     await loadActivities()
-    navigate(trackingType === 'sub-select' || trackingType === 'sub-number'
-      ? `/activity/${id}/subitems`
-      : '/')
+    navigate(trackingType === 'session' ? `/activity/${id}/children` : '/')
   }
 
   const handleDelete = async () => {
     if (!activityId) return
-    if (!confirm('Delete this activity and all its entries?')) return
+    if (!confirm('Delete this activity and all its events?')) return
 
-    await db.activities.delete(activityId)
-    await db.subItems.where('activityId').equals(activityId).delete()
-    await db.entries.where('activityId').equals(activityId).delete()
+    // Delete activity, its children, and all related events
+    const deleteRecursive = async (id: string) => {
+      const children = activities.filter((a) => a.parentId === id)
+      for (const child of children) {
+        await deleteRecursive(child.id)
+      }
+      await db.activities.delete(id)
+      const events = await db.events.where('activityId').equals(id).toArray()
+      for (const event of events) {
+        await db.events.delete(event.id)
+      }
+    }
+
+    await deleteRecursive(activityId)
     await loadActivities()
     navigate('/')
   }
 
-  const needsSubItems = trackingType === 'sub-select' || trackingType === 'sub-number'
-  const needsUnit = trackingType === 'number' || trackingType === 'duration' || trackingType === 'sub-number'
+  const needsChildren = trackingType === 'session'
+  const needsUnit = trackingType === 'number' || trackingType === 'duration'
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -108,7 +110,7 @@ export function ActivityEditorPage() {
             disabled={!emoji || !name}
             className="text-blue-400 hover:text-blue-300 disabled:text-slate-600 font-semibold"
           >
-            {needsSubItems && !isEditing ? 'Next' : 'Save'}
+            {needsChildren && !isEditing ? 'Next' : 'Save'}
           </button>
         </div>
       </header>
@@ -191,16 +193,16 @@ export function ActivityEditorPage() {
           </div>
         )}
 
-        {/* Sub-items link (for editing existing session activities) */}
-        {needsSubItems && isEditing && (
+        {/* Sub-activities link (for editing existing session activities) */}
+        {needsChildren && isEditing && (
           <button
-            onClick={() => navigate(`/activity/${activityId}/subitems`)}
+            onClick={() => navigate(`/activity/${activityId}/children`)}
             className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-800
               hover:bg-slate-700 transition-colors"
           >
             <div>
-              <div className="font-medium">Manage Sub-items</div>
-              <div className="text-sm text-slate-400">{subItems.length} items</div>
+              <div className="font-medium">Manage Sub-activities</div>
+              <div className="text-sm text-slate-400">{childActivities.length} items</div>
             </div>
             <span className="text-slate-400">→</span>
           </button>

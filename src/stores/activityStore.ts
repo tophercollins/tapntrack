@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 import { db } from '../db/database'
-import type { Activity, SubItem } from '../types'
+import type { Activity } from '../types'
 
 interface ActivityState {
   activities: Activity[]
-  subItems: SubItem[]
   loading: boolean
   loadActivities: () => Promise<void>
-  getSubItems: (activityId: string) => SubItem[]
+  getBaseActivities: () => Activity[]
+  getChildren: (parentId: string) => Activity[]
   addActivity: (activity: Activity) => Promise<void>
   updateActivity: (id: string, updates: Partial<Activity>) => Promise<void>
   deleteActivity: (id: string) => Promise<void>
@@ -16,18 +16,22 @@ interface ActivityState {
 
 export const useActivityStore = create<ActivityState>((set, get) => ({
   activities: [],
-  subItems: [],
   loading: true,
 
   loadActivities: async () => {
     set({ loading: true })
     const activities = await db.activities.orderBy('sortOrder').toArray()
-    const subItems = await db.subItems.orderBy('sortOrder').toArray()
-    set({ activities, subItems, loading: false })
+    set({ activities, loading: false })
   },
 
-  getSubItems: (activityId: string) => {
-    return get().subItems.filter((item) => item.activityId === activityId)
+  getBaseActivities: () => {
+    return get().activities.filter((a) => a.isBase)
+  },
+
+  getChildren: (parentId: string) => {
+    return get()
+      .activities.filter((a) => a.parentId === parentId)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
   },
 
   addActivity: async (activity: Activity) => {
@@ -41,8 +45,21 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   },
 
   deleteActivity: async (id: string) => {
-    await db.activities.delete(id)
-    await db.subItems.where('activityId').equals(id).delete()
+    // Delete activity and all its children recursively
+    const deleteRecursive = async (activityId: string) => {
+      const children = get().activities.filter((a) => a.parentId === activityId)
+      for (const child of children) {
+        await deleteRecursive(child.id)
+      }
+      await db.activities.delete(activityId)
+      // Also delete associated events
+      const events = await db.events.where('activityId').equals(activityId).toArray()
+      for (const event of events) {
+        await db.events.delete(event.id)
+      }
+    }
+
+    await deleteRecursive(id)
     await get().loadActivities()
   },
 
@@ -54,7 +71,11 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       .filter((a): a is Activity => a !== undefined)
       .map((a, index) => ({ ...a, sortOrder: index }))
 
-    set({ activities: reorderedActivities })
+    // Merge with activities not in the ordered list
+    const otherActivities = currentActivities.filter(
+      (a) => !orderedIds.includes(a.id)
+    )
+    set({ activities: [...reorderedActivities, ...otherActivities] })
 
     // Persist to database
     await db.transaction('rw', db.activities, async () => {
