@@ -249,7 +249,7 @@ src/
 - [x] Build ActivityEditor screen
 - [x] Implement emoji input (native keyboard)
 - [x] Create sub-item management UI
-- [ ] Add drag-to-reorder functionality
+- [x] Add drag-to-reorder functionality
 
 ### Phase 5: Statistics
 - [ ] Build CalendarHeatmap component

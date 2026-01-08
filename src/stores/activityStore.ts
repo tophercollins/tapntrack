@@ -11,6 +11,7 @@ interface ActivityState {
   addActivity: (activity: Activity) => Promise<void>
   updateActivity: (id: string, updates: Partial<Activity>) => Promise<void>
   deleteActivity: (id: string) => Promise<void>
+  reorderActivities: (orderedIds: string[]) => Promise<void>
 }
 
 export const useActivityStore = create<ActivityState>((set, get) => ({
@@ -43,5 +44,23 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     await db.activities.delete(id)
     await db.subItems.where('activityId').equals(id).delete()
     await get().loadActivities()
+  },
+
+  reorderActivities: async (orderedIds: string[]) => {
+    // Optimistically update the UI
+    const currentActivities = get().activities
+    const reorderedActivities = orderedIds
+      .map((id) => currentActivities.find((a) => a.id === id))
+      .filter((a): a is Activity => a !== undefined)
+      .map((a, index) => ({ ...a, sortOrder: index }))
+
+    set({ activities: reorderedActivities })
+
+    // Persist to database
+    await db.transaction('rw', db.activities, async () => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await db.activities.update(orderedIds[i], { sortOrder: i })
+      }
+    })
   },
 }))

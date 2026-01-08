@@ -33,12 +33,25 @@
   }
 }
 
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(-1deg);
+  }
+  50% {
+    transform: rotate(1deg);
+  }
+}
+
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
 
 .animate-bounce-in {
   animation: bounce-in 0.3s ease-out;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.3s ease-in-out infinite;
 }
 
 /* Disable text selection on buttons for mobile feel */
