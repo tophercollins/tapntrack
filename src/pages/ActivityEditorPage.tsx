@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { db } from '../db/database'
@@ -20,9 +20,10 @@ export function ActivityEditorPage() {
   const { activityId } = useParams<{ activityId: string }>()
   const navigate = useNavigate()
   const { activities, loadActivities } = useActivityStore()
-  const isEditing = !!activityId
 
-  const existingActivity = activities.find((a) => a.id === activityId)
+  // activityId will be "new" for new activities, or an actual ID for editing
+  const isEditing = activityId !== undefined && activityId !== 'new'
+  const existingActivity = isEditing ? activities.find((a) => a.id === activityId) : undefined
 
   const [emoji, setEmoji] = useState(existingActivity?.emoji || '')
   const [name, setName] = useState(existingActivity?.name || '')
@@ -31,6 +32,7 @@ export function ActivityEditorPage() {
   )
   const [unit, setUnit] = useState(existingActivity?.unit || '')
   const [subItems, setSubItems] = useState<SubItem[]>([])
+  const emojiInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (activityId) {
@@ -114,13 +116,17 @@ export function ActivityEditorPage() {
       <div className="p-4 space-y-6">
         {/* Emoji input */}
         <div className="flex flex-col items-center gap-2">
-          <div
+          <button
+            type="button"
+            onClick={() => emojiInputRef.current?.focus()}
             className="w-24 h-24 rounded-2xl bg-slate-800 flex items-center justify-center
-              text-5xl border-2 border-dashed border-slate-600"
+              text-5xl border-2 border-dashed border-slate-600 hover:border-slate-500
+              active:scale-95 transition-all"
           >
             {emoji || '?'}
-          </div>
+          </button>
           <input
+            ref={emojiInputRef}
             type="text"
             value={emoji}
             onChange={(e) => {
@@ -129,8 +135,9 @@ export function ActivityEditorPage() {
               const lastChar = [...value].pop() || ''
               setEmoji(lastChar)
             }}
-            placeholder="Tap to add emoji"
-            className="bg-transparent text-center text-slate-400 outline-none w-40"
+            placeholder="Tap box to add emoji"
+            className="w-full px-4 py-2 rounded-xl bg-slate-800 text-center text-white
+              placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
