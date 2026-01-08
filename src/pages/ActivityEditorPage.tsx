@@ -1,0 +1,215 @@
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useActivityStore } from '../stores/activityStore'
+import { db } from '../db/database'
+import type { Activity, TrackingType, SubItem } from '../types'
+
+const trackingTypes: { type: TrackingType; label: string; icon: string; description: string }[] = [
+  { type: 'tap', label: 'Quick Tap', icon: '👆', description: 'One tap = logged' },
+  { type: 'number', label: 'Counter', icon: '🔢', description: 'Enter a number each time' },
+  { type: 'duration', label: 'Timer', icon: '⏱️', description: 'Track time spent' },
+  { type: 'sub-select', label: 'Session', icon: '📋', description: 'Multiple sub-items to tap' },
+]
+
+const defaultColors = [
+  '#22c55e', '#3b82f6', '#f97316', '#ef4444', '#a855f7',
+  '#ec4899', '#14b8a6', '#f59e0b', '#6366f1', '#78716c',
+]
+
+export function ActivityEditorPage() {
+  const { activityId } = useParams<{ activityId: string }>()
+  const navigate = useNavigate()
+  const { activities, loadActivities } = useActivityStore()
+  const isEditing = !!activityId
+
+  const existingActivity = activities.find((a) => a.id === activityId)
+
+  const [emoji, setEmoji] = useState(existingActivity?.emoji || '')
+  const [name, setName] = useState(existingActivity?.name || '')
+  const [trackingType, setTrackingType] = useState<TrackingType>(
+    existingActivity?.trackingType || 'tap'
+  )
+  const [unit, setUnit] = useState(existingActivity?.unit || '')
+  const [subItems, setSubItems] = useState<SubItem[]>([])
+
+  useEffect(() => {
+    if (activityId) {
+      db.subItems
+        .where('activityId')
+        .equals(activityId)
+        .sortBy('sortOrder')
+        .then(setSubItems)
+    }
+  }, [activityId])
+
+  const handleSave = async () => {
+    if (!emoji || !name) return
+
+    const id = activityId || crypto.randomUUID()
+    const color = existingActivity?.color || defaultColors[activities.length % defaultColors.length]
+
+    const activity: Activity = {
+      id,
+      name,
+      emoji,
+      color,
+      trackingType,
+      unit: unit || undefined,
+      createdAt: existingActivity?.createdAt || new Date(),
+      sortOrder: existingActivity?.sortOrder ?? activities.length,
+    }
+
+    if (isEditing) {
+      await db.activities.update(id, activity)
+    } else {
+      await db.activities.add(activity)
+    }
+
+    await loadActivities()
+    navigate(trackingType === 'sub-select' || trackingType === 'sub-number'
+      ? `/activity/${id}/subitems`
+      : '/')
+  }
+
+  const handleDelete = async () => {
+    if (!activityId) return
+    if (!confirm('Delete this activity and all its entries?')) return
+
+    await db.activities.delete(activityId)
+    await db.subItems.where('activityId').equals(activityId).delete()
+    await db.entries.where('activityId').equals(activityId).delete()
+    await loadActivities()
+    navigate('/')
+  }
+
+  const needsSubItems = trackingType === 'sub-select' || trackingType === 'sub-number'
+  const needsUnit = trackingType === 'number' || trackingType === 'duration' || trackingType === 'sub-number'
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Header */}
+      <header className="flex items-center justify-between px-4 pt-safe">
+        <div className="pt-4 pb-2">
+          <button
+            onClick={() => navigate(-1)}
+            className="text-blue-400 hover:text-blue-300"
+          >
+            Cancel
+          </button>
+        </div>
+        <h1 className="pt-4 pb-2 text-lg font-semibold">
+          {isEditing ? 'Edit Activity' : 'New Activity'}
+        </h1>
+        <div className="pt-4 pb-2">
+          <button
+            onClick={handleSave}
+            disabled={!emoji || !name}
+            className="text-blue-400 hover:text-blue-300 disabled:text-slate-600 font-semibold"
+          >
+            {needsSubItems && !isEditing ? 'Next' : 'Save'}
+          </button>
+        </div>
+      </header>
+
+      <div className="p-4 space-y-6">
+        {/* Emoji input */}
+        <div className="flex flex-col items-center gap-2">
+          <div
+            className="w-24 h-24 rounded-2xl bg-slate-800 flex items-center justify-center
+              text-5xl border-2 border-dashed border-slate-600"
+          >
+            {emoji || '?'}
+          </div>
+          <input
+            type="text"
+            value={emoji}
+            onChange={(e) => {
+              // Take only the last character/emoji entered
+              const value = e.target.value
+              const lastChar = [...value].pop() || ''
+              setEmoji(lastChar)
+            }}
+            placeholder="Tap to add emoji"
+            className="bg-transparent text-center text-slate-400 outline-none w-40"
+          />
+        </div>
+
+        {/* Name input */}
+        <div>
+          <label className="block text-sm text-slate-400 mb-2">Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Activity name"
+            className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white
+              placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Tracking type selector */}
+        <div>
+          <label className="block text-sm text-slate-400 mb-2">Tracking Type</label>
+          <div className="grid grid-cols-2 gap-3">
+            {trackingTypes.map((tt) => (
+              <button
+                key={tt.type}
+                onClick={() => setTrackingType(tt.type)}
+                className={`p-4 rounded-xl text-left transition-all ${
+                  trackingType === tt.type
+                    ? 'bg-blue-600 ring-2 ring-blue-400'
+                    : 'bg-slate-800 hover:bg-slate-700'
+                }`}
+              >
+                <div className="text-2xl mb-1">{tt.icon}</div>
+                <div className="font-medium">{tt.label}</div>
+                <div className="text-xs text-slate-300 opacity-75">{tt.description}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Unit input (conditional) */}
+        {needsUnit && (
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">Unit (optional)</label>
+            <input
+              type="text"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              placeholder={trackingType === 'duration' ? 'e.g., minutes' : 'e.g., reps, glasses'}
+              className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white
+                placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
+
+        {/* Sub-items link (for editing existing session activities) */}
+        {needsSubItems && isEditing && (
+          <button
+            onClick={() => navigate(`/activity/${activityId}/subitems`)}
+            className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-800
+              hover:bg-slate-700 transition-colors"
+          >
+            <div>
+              <div className="font-medium">Manage Sub-items</div>
+              <div className="text-sm text-slate-400">{subItems.length} items</div>
+            </div>
+            <span className="text-slate-400">→</span>
+          </button>
+        )}
+
+        {/* Delete button (only when editing) */}
+        {isEditing && (
+          <button
+            onClick={handleDelete}
+            className="w-full py-3 px-4 rounded-xl bg-red-600/20 text-red-400
+              hover:bg-red-600/30 transition-colors"
+          >
+            Delete Activity
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}

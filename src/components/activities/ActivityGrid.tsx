@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useActivityStore } from '../../stores/activityStore'
 import { useEntryStore } from '../../stores/entryStore'
 import { useUIStore } from '../../stores/uiStore'
@@ -6,10 +7,11 @@ import { hapticTap, hapticSuccess } from '../../utils/haptics'
 import type { Activity } from '../../types'
 
 export function ActivityGrid() {
+  const navigate = useNavigate()
   const { activities } = useActivityStore()
   const { todayEntries } = useEntryStore()
   const { addEntry } = useEntryStore()
-  const { openSubSelect, openNumber, openDuration, showConfirmation } = useUIStore()
+  const { openNumber, openDuration, showConfirmation } = useUIStore()
 
   const getCountForActivity = (activityId: string) => {
     return todayEntries.filter((e) => e.activityId === activityId).length
@@ -26,15 +28,12 @@ export function ActivityGrid() {
         break
 
       case 'sub-select':
-        openSubSelect(activity)
+      case 'sub-number':
+        navigate(`/session/${activity.id}`)
         break
 
       case 'number':
         openNumber(activity)
-        break
-
-      case 'sub-number':
-        openSubSelect(activity)
         break
 
       case 'duration':
@@ -43,14 +42,9 @@ export function ActivityGrid() {
     }
   }
 
-  if (activities.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-        <span className="text-4xl mb-4">📝</span>
-        <p>No activities yet</p>
-        <p className="text-sm">Go to Settings to add some!</p>
-      </div>
-    )
+  const handleAddActivity = () => {
+    hapticTap()
+    navigate('/activity/new')
   }
 
   return (
@@ -65,6 +59,23 @@ export function ActivityGrid() {
           count={getCountForActivity(activity.id)}
         />
       ))}
+
+      {/* Add new activity button */}
+      <button
+        onClick={handleAddActivity}
+        className="flex flex-col items-center gap-1 group"
+      >
+        <div
+          className="w-20 h-20 rounded-2xl flex items-center justify-center
+            bg-slate-800/50 hover:bg-slate-700 active:scale-95 transition-all
+            border-2 border-dashed border-slate-600 group-hover:border-slate-500"
+        >
+          <span className="text-3xl text-slate-500 group-hover:text-slate-400">+</span>
+        </div>
+        <span className="text-xs text-slate-500 group-hover:text-slate-400">
+          Add
+        </span>
+      </button>
     </div>
   )
 }
