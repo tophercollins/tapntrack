@@ -92,13 +92,14 @@ interface Entry {
 [Home Screen] → Tap 💊 → ✓ Logged!
 ```
 
-### Flow 2: Sub-Select (e.g., "Bouldering")
+### Flow 2: Session Mode (e.g., "Bouldering")
 ```
-[Home Screen] → Tap 🧗 → [Grade Sheet]
-                          🟢 V0-V1
-                          🟡 V2-V3  → Tap → ✓ Logged!
+[Home Screen] → Tap 🧗 → [Session Screen]
+                          🟢 V0-V1 (x2)  ← tap multiple times
+                          🟡 V2-V3 (x1)  ← each tap logs immediately
                           🟠 V4-V5
                           🔴 V6+
+                          [Done] → Back to Home
 ```
 
 ### Flow 3: Number Input (e.g., "Glasses of Water")
@@ -223,31 +224,32 @@ src/
 
 ## Implementation Phases
 
-### Phase 1: Foundation
-- [ ] Initialize Vite + React + TypeScript project
-- [ ] Set up Tailwind CSS
-- [ ] Configure Dexie.js database
-- [ ] Create basic layout with bottom navigation
-- [ ] Implement activity store with Zustand
+### Phase 1: Foundation ✅
+- [x] Initialize Vite + React + TypeScript project
+- [x] Set up Tailwind CSS
+- [x] Configure Dexie.js database
+- [x] Create basic layout with bottom navigation
+- [x] Implement activity store with Zustand
 
-### Phase 2: Core Tracking (MVP)
-- [ ] Build ActivityGrid component
-- [ ] Implement EmojiButton component
-- [ ] Create "tap" tracking type (simplest flow)
-- [ ] Add LogConfirmation feedback (toast/animation)
-- [ ] Build basic entry logging to database
+### Phase 2: Core Tracking (MVP) ✅
+- [x] Build ActivityGrid component
+- [x] Implement EmojiButton component
+- [x] Create "tap" tracking type (simplest flow)
+- [x] Add LogConfirmation feedback (toast/animation)
+- [x] Build basic entry logging to database
 
-### Phase 3: Advanced Tracking Types
-- [ ] Implement SubItemPicker for "sub-select" type
-- [ ] Build NumberPad component for "number" type
-- [ ] Create combined flow for "sub-number" type
-- [ ] Add Timer component for "duration" type
+### Phase 3: Advanced Tracking Types ✅
+- [x] Implement SubItemPicker for "sub-select" type
+- [x] Build NumberPad component for "number" type
+- [x] Create combined flow for "sub-number" type
+- [x] Add Timer component for "duration" type
+- [x] Session screen for multi-tap sub-item tracking
 
-### Phase 4: Activity Management
-- [ ] Build ActivityEditor screen
-- [ ] Implement emoji picker
+### Phase 4: Activity Management ✅
+- [x] Build ActivityEditor screen
+- [x] Implement emoji input (native keyboard)
+- [x] Create sub-item management UI
 - [ ] Add drag-to-reorder functionality
-- [ ] Create sub-item management UI
 
 ### Phase 5: Statistics
 - [ ] Build CalendarHeatmap component
@@ -256,9 +258,10 @@ src/
 - [ ] Add weekly/monthly summary views
 
 ### Phase 6: Polish & PWA
+- [x] Configure Capacitor for iOS/Android
+- [x] Implement haptic feedback (where supported)
 - [ ] Configure PWA manifest and service worker
 - [ ] Add install prompt
-- [ ] Implement haptic feedback (where supported)
 - [ ] Add success animations
 - [ ] Optimize for offline use
 - [ ] Data export functionality
