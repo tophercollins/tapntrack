@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { useEventStore } from '../stores/eventStore'
 import { hapticTap, hapticSuccess } from '../utils/haptics'
@@ -7,7 +7,6 @@ import type { Activity } from '../types'
 
 export function SessionScreen() {
   const { activityId } = useParams<{ activityId: string }>()
-  const navigate = useNavigate()
   const { activities, getChildren } = useActivityStore()
   const { todayEvents, addEvent } = useEventStore()
   const [sessionCounts, setSessionCounts] = useState<Record<string, number>>({})
@@ -51,14 +50,14 @@ export function SessionScreen() {
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-safe">
         <div className="pt-4 pb-2">
-          <button
-            type="button"
-            onClick={() => navigate('/', { replace: true })}
+          <Link
+            to="/"
+            replace
             className="flex items-center gap-2 text-blue-400 hover:text-blue-300 active:scale-95 transition-transform"
           >
             <span>←</span>
             <span>Done</span>
-          </button>
+          </Link>
         </div>
         <div className="pt-4 pb-2 flex items-center gap-2">
           <span className="text-2xl">{activity.emoji}</span>

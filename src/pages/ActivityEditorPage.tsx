@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { db } from '../db/database'
 import type { Activity, TrackingType } from '../types'
@@ -38,12 +38,9 @@ export function ActivityEditorPage() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
         <p className="text-slate-400 mb-4">Activity not found</p>
-        <button
-          onClick={() => navigate('/')}
-          className="text-blue-400 hover:text-blue-300"
-        >
+        <Link to="/" replace className="text-blue-400 hover:text-blue-300">
           Go Home
-        </button>
+        </Link>
       </div>
     )
   }
@@ -53,12 +50,9 @@ export function ActivityEditorPage() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
         <p className="text-slate-400 mb-4">Parent activity not found</p>
-        <button
-          onClick={() => navigate('/')}
-          className="text-blue-400 hover:text-blue-300"
-        >
+        <Link to="/" replace className="text-blue-400 hover:text-blue-300">
           Go Home
-        </button>
+        </Link>
       </div>
     )
   }
@@ -168,32 +162,25 @@ export function ActivityEditorPage() {
     return parentId ? 'New Sub-activity' : 'New Activity'
   }
 
-  // Determine back button behavior
-  const handleBack = () => {
-    if (parentId) {
-      // Creating child - go back to parent edit page
-      navigate(`/activity/${parentId}/edit`, { replace: true })
-    } else if (existingActivity?.parentId) {
-      // Editing child - go back to parent edit page
-      navigate(`/activity/${existingActivity.parentId}/edit`, { replace: true })
-    } else {
-      // Base activity - go home
-      navigate('/', { replace: true })
-    }
-  }
+  // Compute back link destination
+  const backPath = parentId
+    ? `/activity/${parentId}/edit`  // Creating child - go back to parent edit page
+    : existingActivity?.parentId
+      ? `/activity/${existingActivity.parentId}/edit`  // Editing child - go back to parent edit page
+      : '/'  // Base activity - go home
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-safe">
         <div className="pt-4 pb-2">
-          <button
-            type="button"
-            onClick={handleBack}
+          <Link
+            to={backPath}
+            replace
             className="text-blue-400 hover:text-blue-300 active:scale-95 transition-transform"
           >
             Cancel
-          </button>
+          </Link>
         </div>
         <h1 className="pt-4 pb-2 text-lg font-semibold">
           {getHeaderTitle()}
