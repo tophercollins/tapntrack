@@ -70,6 +70,7 @@ export function ActivityEditorPage() {
     existingActivity?.trackingType || 'tap'
   )
   const [unit, setUnit] = useState(existingActivity?.unit || '')
+  const [dailyTarget, setDailyTarget] = useState(existingActivity?.dailyTarget?.toString() || '')
   const [isSaving, setIsSaving] = useState(false)
   const emojiInputRef = useRef<HTMLInputElement>(null)
 
@@ -103,6 +104,7 @@ export function ActivityEditorPage() {
         || parentActivity?.color
         || defaultColors[activeBaseCount % defaultColors.length]
 
+      const parsedDailyTarget = dailyTarget ? parseInt(dailyTarget, 10) : undefined
       const activity: Activity = {
         id,
         name,
@@ -110,6 +112,7 @@ export function ActivityEditorPage() {
         color,
         trackingType,
         unit: unit || undefined,
+        dailyTarget: parsedDailyTarget && parsedDailyTarget > 0 ? parsedDailyTarget : undefined,
         createdAt: existingActivity?.createdAt || new Date(),
         sortOrder,
         isBase: !effectiveParentId,
@@ -305,6 +308,26 @@ export function ActivityEditorPage() {
               className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white
                 placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+        )}
+
+        {/* Daily target input (for tap activities) */}
+        {trackingType === 'tap' && (
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">Daily Target (optional)</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="1"
+              value={dailyTarget}
+              onChange={(e) => setDailyTarget(e.target.value)}
+              placeholder="e.g., 2 (shows tick when done)"
+              className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white
+                placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              When you reach the target, a tick will show it's done for the day
+            </p>
           </div>
         )}
 

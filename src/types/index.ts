@@ -11,6 +11,7 @@ export interface Activity {
   color: string
   trackingType: TrackingType
   unit?: string
+  dailyTarget?: number    // max times per day (shows tick when reached)
   createdAt: Date
   sortOrder: number
   isBase: boolean       // true = shows on home grid

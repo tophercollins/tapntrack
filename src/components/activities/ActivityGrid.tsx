@@ -43,6 +43,12 @@ export function ActivityGrid() {
     return todayEvents.filter((e) => e.activityId === activityId).length
   }
 
+  const isActivityComplete = (activity: Activity) => {
+    if (!activity.dailyTarget) return false
+    const count = getCountForActivity(activity.id)
+    return count >= activity.dailyTarget
+  }
+
   const handleActivityTap = async (activity: Activity) => {
     if (isDragMode || isSaving) return
 
@@ -146,6 +152,7 @@ export function ActivityGrid() {
                 onClick={() => handleActivityTap(activity)}
                 count={getCountForActivity(activity.id)}
                 isDragMode={isDragMode}
+                isComplete={isActivityComplete(activity)}
               />
             ))}
 
