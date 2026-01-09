@@ -25,12 +25,14 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   },
 
   getBaseActivities: () => {
-    return get().activities.filter((a) => a.isBase)
+    // Filter out deleted activities
+    return get().activities.filter((a) => a.isBase && !a.deletedAt)
   },
 
   getChildren: (parentId: string) => {
+    // Filter out deleted activities
     return get()
-      .activities.filter((a) => a.parentId === parentId)
+      .activities.filter((a) => a.parentId === parentId && !a.deletedAt)
       .sort((a, b) => a.sortOrder - b.sortOrder)
   },
 
@@ -45,21 +47,17 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   },
 
   deleteActivity: async (id: string) => {
-    // Delete activity and all its children recursively
-    const deleteRecursive = async (activityId: string) => {
+    // Soft delete - mark activity and all its children as deleted
+    // This preserves historical event data
+    const softDeleteRecursive = async (activityId: string) => {
       const children = get().activities.filter((a) => a.parentId === activityId)
       for (const child of children) {
-        await deleteRecursive(child.id)
+        await softDeleteRecursive(child.id)
       }
-      await db.activities.delete(activityId)
-      // Also delete associated events
-      const events = await db.events.where('activityId').equals(activityId).toArray()
-      for (const event of events) {
-        await db.events.delete(event.id)
-      }
+      await db.activities.update(activityId, { deletedAt: new Date() })
     }
 
-    await deleteRecursive(id)
+    await softDeleteRecursive(id)
     await get().loadActivities()
   },
 

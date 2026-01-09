@@ -15,6 +15,7 @@ export interface Activity {
   sortOrder: number
   isBase: boolean       // true = shows on home grid
   parentId?: string     // null for base activities, points to parent for nested
+  deletedAt?: Date      // soft delete - keeps historical data
 }
 
 export interface Event {

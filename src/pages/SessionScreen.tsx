@@ -52,8 +52,9 @@ export function SessionScreen() {
       <header className="flex items-center justify-between px-4 pt-safe">
         <div className="pt-4 pb-2">
           <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-blue-400 hover:text-blue-300"
+            type="button"
+            onClick={() => navigate('/', { replace: true })}
+            className="flex items-center gap-2 text-blue-400 hover:text-blue-300 active:scale-95 transition-transform"
           >
             <span>←</span>
             <span>Done</span>

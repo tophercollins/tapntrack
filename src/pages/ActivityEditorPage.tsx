@@ -20,7 +20,7 @@ export function ActivityEditorPage() {
   const { activityId } = useParams<{ activityId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { activities, getChildren, loadActivities } = useActivityStore()
+  const { activities, getChildren, loadActivities, deleteActivity } = useActivityStore()
 
   // Check if we're creating a child activity (parentId in query params)
   const parentId = searchParams.get('parent')
@@ -103,25 +103,12 @@ export function ActivityEditorPage() {
 
   const handleDelete = async () => {
     if (!activityId) return
-    if (!confirm('Delete this activity and all its events?')) return
+    if (!confirm('Delete this activity? Historical data will be preserved.')) return
 
     const deletedParentId = existingActivity?.parentId
 
-    // Delete activity, its children, and all related events
-    const deleteRecursive = async (id: string) => {
-      const children = activities.filter((a) => a.parentId === id)
-      for (const child of children) {
-        await deleteRecursive(child.id)
-      }
-      await db.activities.delete(id)
-      const events = await db.events.where('activityId').equals(id).toArray()
-      for (const event of events) {
-        await db.events.delete(event.id)
-      }
-    }
-
-    await deleteRecursive(activityId)
-    await loadActivities()
+    // Soft delete - marks activity and children as deleted but preserves events
+    await deleteActivity(activityId)
 
     // Navigate back appropriately
     if (deletedParentId) {
