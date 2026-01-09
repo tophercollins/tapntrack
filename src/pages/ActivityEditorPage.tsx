@@ -30,16 +30,13 @@ export function ActivityEditorPage() {
   const isEditing = activityId !== undefined && activityId !== 'new'
   const existingActivity = isEditing ? activities.find((a) => a.id === activityId) : undefined
 
-  // Determine if this is a child activity (either editing one, or creating under a parent)
-  const isChildActivity = parentId !== null || (existingActivity && !existingActivity.isBase)
-
   // Get children if editing a session-type activity
   const childActivities = isEditing && activityId ? getChildren(activityId) : []
 
   const [emoji, setEmoji] = useState(existingActivity?.emoji || '')
   const [name, setName] = useState(existingActivity?.name || '')
   const [trackingType, setTrackingType] = useState<TrackingType>(
-    existingActivity?.trackingType || (isChildActivity ? 'tap' : 'tap')
+    existingActivity?.trackingType || 'tap'
   )
   const [unit, setUnit] = useState(existingActivity?.unit || '')
   const emojiInputRef = useRef<HTMLInputElement>(null)
@@ -142,9 +139,8 @@ export function ActivityEditorPage() {
     navigate(`/activity/${childId}/edit`)
   }
 
-  const needsChildren = trackingType === 'session' && !isChildActivity
+  const needsChildren = trackingType === 'session'
   const needsUnit = trackingType === 'number' || trackingType === 'duration'
-  const showTrackingType = !isChildActivity // Only show tracking type for base activities
 
   // Determine header title
   const getHeaderTitle = () => {
@@ -247,29 +243,27 @@ export function ActivityEditorPage() {
           />
         </div>
 
-        {/* Tracking type selector - only for base activities */}
-        {showTrackingType && (
-          <div>
-            <label className="block text-sm text-slate-400 mb-2">Tracking Type</label>
-            <div className="grid grid-cols-2 gap-3">
-              {trackingTypes.map((tt) => (
-                <button
-                  key={tt.type}
-                  onClick={() => setTrackingType(tt.type)}
-                  className={`p-4 rounded-xl text-left transition-all ${
-                    trackingType === tt.type
-                      ? 'bg-blue-600 ring-2 ring-blue-400'
-                      : 'bg-slate-800 hover:bg-slate-700'
-                  }`}
-                >
-                  <div className="text-2xl mb-1">{tt.icon}</div>
-                  <div className="font-medium">{tt.label}</div>
-                  <div className="text-xs text-slate-300 opacity-75">{tt.description}</div>
-                </button>
-              ))}
-            </div>
+        {/* Tracking type selector */}
+        <div>
+          <label className="block text-sm text-slate-400 mb-2">Tracking Type</label>
+          <div className="grid grid-cols-2 gap-3">
+            {trackingTypes.map((tt) => (
+              <button
+                key={tt.type}
+                onClick={() => setTrackingType(tt.type)}
+                className={`p-4 rounded-xl text-left transition-all ${
+                  trackingType === tt.type
+                    ? 'bg-blue-600 ring-2 ring-blue-400'
+                    : 'bg-slate-800 hover:bg-slate-700'
+                }`}
+              >
+                <div className="text-2xl mb-1">{tt.icon}</div>
+                <div className="font-medium">{tt.label}</div>
+                <div className="text-xs text-slate-300 opacity-75">{tt.description}</div>
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Unit input (conditional) */}
         {needsUnit && (
