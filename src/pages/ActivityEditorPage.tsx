@@ -24,14 +24,44 @@ export function ActivityEditorPage() {
 
   // Check if we're creating a child activity (parentId in query params)
   const parentId = searchParams.get('parent')
-  const parentActivity = parentId ? activities.find((a) => a.id === parentId) : undefined
+  const parentActivity = parentId ? activities.find((a) => a.id === parentId && !a.deletedAt) : undefined
 
   // activityId will be "new" for new activities, or an actual ID for editing
   const isEditing = activityId !== undefined && activityId !== 'new'
-  const existingActivity = isEditing ? activities.find((a) => a.id === activityId) : undefined
+  const existingActivity = isEditing ? activities.find((a) => a.id === activityId && !a.deletedAt) : undefined
 
   // Get children if editing a session-type activity
   const childActivities = isEditing && activityId ? getChildren(activityId) : []
+
+  // Handle case where activity doesn't exist or was deleted
+  if (isEditing && !existingActivity) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+        <p className="text-slate-400 mb-4">Activity not found</p>
+        <button
+          onClick={() => navigate('/')}
+          className="text-blue-400 hover:text-blue-300"
+        >
+          Go Home
+        </button>
+      </div>
+    )
+  }
+
+  // Handle case where parent doesn't exist (for creating child)
+  if (parentId && !parentActivity) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+        <p className="text-slate-400 mb-4">Parent activity not found</p>
+        <button
+          onClick={() => navigate('/')}
+          className="text-blue-400 hover:text-blue-300"
+        >
+          Go Home
+        </button>
+      </div>
+    )
+  }
 
   const [emoji, setEmoji] = useState(existingActivity?.emoji || '')
   const [name, setName] = useState(existingActivity?.name || '')
@@ -51,22 +81,23 @@ export function ActivityEditorPage() {
       ? existingActivity?.parentId
       : parentId || undefined
 
-    // Calculate sort order based on siblings
+    // Calculate sort order based on siblings (excluding deleted)
     let sortOrder: number
     if (effectiveParentId) {
-      // Child activity - count siblings
-      const siblings = activities.filter((a) => a.parentId === effectiveParentId)
+      // Child activity - count active siblings only
+      const siblings = activities.filter((a) => a.parentId === effectiveParentId && !a.deletedAt)
       sortOrder = existingActivity?.sortOrder ?? siblings.length
     } else {
-      // Base activity
-      const baseActivities = activities.filter((a) => a.isBase)
+      // Base activity - count active base activities only
+      const baseActivities = activities.filter((a) => a.isBase && !a.deletedAt)
       sortOrder = existingActivity?.sortOrder ?? baseActivities.length
     }
 
     // Pick color - inherit from parent if child, otherwise use default rotation
+    const activeBaseCount = activities.filter((a) => a.isBase && !a.deletedAt).length
     const color = existingActivity?.color
       || parentActivity?.color
-      || defaultColors[activities.filter((a) => a.isBase).length % defaultColors.length]
+      || defaultColors[activeBaseCount % defaultColors.length]
 
     const activity: Activity = {
       id,

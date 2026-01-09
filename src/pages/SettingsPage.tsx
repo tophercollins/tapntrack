@@ -5,6 +5,9 @@ import { db } from '../db/database'
 export function SettingsPage() {
   const { activities, loadActivities } = useActivityStore()
 
+  // Filter out deleted activities for display
+  const activeActivities = activities.filter((a) => !a.deletedAt)
+
   const handleClearData = async () => {
     if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
       await db.events.clear()
@@ -23,7 +26,7 @@ export function SettingsPage() {
         <div className="bg-slate-800 rounded-2xl p-4">
           <h3 className="text-lg font-semibold mb-4">Your Activities</h3>
           <div className="space-y-2">
-            {activities.map((activity) => (
+            {activeActivities.map((activity) => (
               <div
                 key={activity.id}
                 className="flex items-center justify-between py-2 px-3
@@ -39,9 +42,9 @@ export function SettingsPage() {
               </div>
             ))}
           </div>
-          <p className="text-slate-400 text-sm mt-4">
-            Activity editor coming soon!
-          </p>
+          {activeActivities.length === 0 && (
+            <p className="text-slate-400 text-sm">No activities yet. Tap + on the home screen to add one.</p>
+          )}
         </div>
 
         {/* Data section */}

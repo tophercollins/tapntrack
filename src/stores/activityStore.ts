@@ -50,11 +50,16 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     // Soft delete - mark activity and all its children as deleted
     // This preserves historical event data
     const softDeleteRecursive = async (activityId: string) => {
-      const children = get().activities.filter((a) => a.parentId === activityId)
+      // Only process non-deleted children to avoid redundant updates
+      const children = get().activities.filter((a) => a.parentId === activityId && !a.deletedAt)
       for (const child of children) {
         await softDeleteRecursive(child.id)
       }
-      await db.activities.update(activityId, { deletedAt: new Date() })
+      // Only update if not already deleted
+      const activity = get().activities.find((a) => a.id === activityId)
+      if (activity && !activity.deletedAt) {
+        await db.activities.update(activityId, { deletedAt: new Date() })
+      }
     }
 
     await softDeleteRecursive(id)
