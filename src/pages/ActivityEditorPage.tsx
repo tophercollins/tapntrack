@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { db } from '../db/database'
 import type { Activity, TrackingType } from '../types'
@@ -18,18 +18,28 @@ const defaultColors = [
 
 export function ActivityEditorPage() {
   const { activityId } = useParams<{ activityId: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { activities, getChildren, loadActivities } = useActivityStore()
+
+  // Check if we're creating a child activity (parentId in query params)
+  const parentId = searchParams.get('parent')
+  const parentActivity = parentId ? activities.find((a) => a.id === parentId) : undefined
 
   // activityId will be "new" for new activities, or an actual ID for editing
   const isEditing = activityId !== undefined && activityId !== 'new'
   const existingActivity = isEditing ? activities.find((a) => a.id === activityId) : undefined
+
+  // Determine if this is a child activity (either editing one, or creating under a parent)
+  const isChildActivity = parentId !== null || (existingActivity && !existingActivity.isBase)
+
+  // Get children if editing a session-type activity
   const childActivities = isEditing && activityId ? getChildren(activityId) : []
 
   const [emoji, setEmoji] = useState(existingActivity?.emoji || '')
   const [name, setName] = useState(existingActivity?.name || '')
   const [trackingType, setTrackingType] = useState<TrackingType>(
-    existingActivity?.trackingType || 'tap'
+    existingActivity?.trackingType || (isChildActivity ? 'tap' : 'tap')
   )
   const [unit, setUnit] = useState(existingActivity?.unit || '')
   const emojiInputRef = useRef<HTMLInputElement>(null)
@@ -38,8 +48,28 @@ export function ActivityEditorPage() {
     if (!emoji || !name) return
 
     const id = isEditing && activityId ? activityId : crypto.randomUUID()
-    const baseActivities = activities.filter((a) => a.isBase)
-    const color = existingActivity?.color || defaultColors[baseActivities.length % defaultColors.length]
+
+    // Determine parent for this activity
+    const effectiveParentId = isEditing
+      ? existingActivity?.parentId
+      : parentId || undefined
+
+    // Calculate sort order based on siblings
+    let sortOrder: number
+    if (effectiveParentId) {
+      // Child activity - count siblings
+      const siblings = activities.filter((a) => a.parentId === effectiveParentId)
+      sortOrder = existingActivity?.sortOrder ?? siblings.length
+    } else {
+      // Base activity
+      const baseActivities = activities.filter((a) => a.isBase)
+      sortOrder = existingActivity?.sortOrder ?? baseActivities.length
+    }
+
+    // Pick color - inherit from parent if child, otherwise use default rotation
+    const color = existingActivity?.color
+      || parentActivity?.color
+      || defaultColors[activities.filter((a) => a.isBase).length % defaultColors.length]
 
     const activity: Activity = {
       id,
@@ -49,9 +79,9 @@ export function ActivityEditorPage() {
       trackingType,
       unit: unit || undefined,
       createdAt: existingActivity?.createdAt || new Date(),
-      sortOrder: existingActivity?.sortOrder ?? baseActivities.length,
-      isBase: true,
-      parentId: undefined,
+      sortOrder,
+      isBase: !effectiveParentId,
+      parentId: effectiveParentId,
     }
 
     if (isEditing) {
@@ -61,12 +91,24 @@ export function ActivityEditorPage() {
     }
 
     await loadActivities()
-    navigate(trackingType === 'session' ? `/activity/${id}/children` : '/')
+
+    // Navigate appropriately after save
+    if (!isEditing && trackingType === 'session' && !effectiveParentId) {
+      // New session activity - stay on edit page to add children
+      navigate(`/activity/${id}/edit`, { replace: true })
+    } else if (effectiveParentId) {
+      // Child activity - go back to parent edit page
+      navigate(`/activity/${effectiveParentId}/edit`, { replace: true })
+    } else {
+      navigate('/')
+    }
   }
 
   const handleDelete = async () => {
     if (!activityId) return
     if (!confirm('Delete this activity and all its events?')) return
+
+    const deletedParentId = existingActivity?.parentId
 
     // Delete activity, its children, and all related events
     const deleteRecursive = async (id: string) => {
@@ -83,11 +125,47 @@ export function ActivityEditorPage() {
 
     await deleteRecursive(activityId)
     await loadActivities()
-    navigate('/')
+
+    // Navigate back appropriately
+    if (deletedParentId) {
+      navigate(`/activity/${deletedParentId}/edit`, { replace: true })
+    } else {
+      navigate('/')
+    }
   }
 
-  const needsChildren = trackingType === 'session'
+  const handleAddChild = () => {
+    navigate(`/activity/new?parent=${activityId}`)
+  }
+
+  const handleEditChild = (childId: string) => {
+    navigate(`/activity/${childId}/edit`)
+  }
+
+  const needsChildren = trackingType === 'session' && !isChildActivity
   const needsUnit = trackingType === 'number' || trackingType === 'duration'
+  const showTrackingType = !isChildActivity // Only show tracking type for base activities
+
+  // Determine header title
+  const getHeaderTitle = () => {
+    if (isEditing) {
+      return existingActivity?.isBase === false ? 'Edit Sub-activity' : 'Edit Activity'
+    }
+    return parentId ? 'New Sub-activity' : 'New Activity'
+  }
+
+  // Determine back button behavior
+  const handleBack = () => {
+    if (parentId) {
+      // Creating child - go back to parent
+      navigate(`/activity/${parentId}/edit`)
+    } else if (existingActivity?.parentId) {
+      // Editing child - go back to parent
+      navigate(`/activity/${existingActivity.parentId}/edit`)
+    } else {
+      navigate(-1)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -95,14 +173,14 @@ export function ActivityEditorPage() {
       <header className="flex items-center justify-between px-4 pt-safe">
         <div className="pt-4 pb-2">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="text-blue-400 hover:text-blue-300"
           >
             Cancel
           </button>
         </div>
         <h1 className="pt-4 pb-2 text-lg font-semibold">
-          {isEditing ? 'Edit Activity' : 'New Activity'}
+          {getHeaderTitle()}
         </h1>
         <div className="pt-4 pb-2">
           <button
@@ -110,10 +188,23 @@ export function ActivityEditorPage() {
             disabled={!emoji || !name}
             className="text-blue-400 hover:text-blue-300 disabled:text-slate-600 font-semibold"
           >
-            {needsChildren && !isEditing ? 'Next' : 'Save'}
+            Save
           </button>
         </div>
       </header>
+
+      {/* Parent indicator for child activities */}
+      {(parentActivity || (existingActivity && !existingActivity.isBase)) && (
+        <div className="px-4 py-2 bg-slate-900 border-b border-slate-800">
+          <div className="text-sm text-slate-400">
+            Sub-activity of{' '}
+            <span className="text-white">
+              {parentActivity?.emoji || activities.find(a => a.id === existingActivity?.parentId)?.emoji}{' '}
+              {parentActivity?.name || activities.find(a => a.id === existingActivity?.parentId)?.name}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="p-4 space-y-6">
         {/* Emoji input */}
@@ -156,27 +247,29 @@ export function ActivityEditorPage() {
           />
         </div>
 
-        {/* Tracking type selector */}
-        <div>
-          <label className="block text-sm text-slate-400 mb-2">Tracking Type</label>
-          <div className="grid grid-cols-2 gap-3">
-            {trackingTypes.map((tt) => (
-              <button
-                key={tt.type}
-                onClick={() => setTrackingType(tt.type)}
-                className={`p-4 rounded-xl text-left transition-all ${
-                  trackingType === tt.type
-                    ? 'bg-blue-600 ring-2 ring-blue-400'
-                    : 'bg-slate-800 hover:bg-slate-700'
-                }`}
-              >
-                <div className="text-2xl mb-1">{tt.icon}</div>
-                <div className="font-medium">{tt.label}</div>
-                <div className="text-xs text-slate-300 opacity-75">{tt.description}</div>
-              </button>
-            ))}
+        {/* Tracking type selector - only for base activities */}
+        {showTrackingType && (
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">Tracking Type</label>
+            <div className="grid grid-cols-2 gap-3">
+              {trackingTypes.map((tt) => (
+                <button
+                  key={tt.type}
+                  onClick={() => setTrackingType(tt.type)}
+                  className={`p-4 rounded-xl text-left transition-all ${
+                    trackingType === tt.type
+                      ? 'bg-blue-600 ring-2 ring-blue-400'
+                      : 'bg-slate-800 hover:bg-slate-700'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">{tt.icon}</div>
+                  <div className="font-medium">{tt.label}</div>
+                  <div className="text-xs text-slate-300 opacity-75">{tt.description}</div>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Unit input (conditional) */}
         {needsUnit && (
@@ -193,19 +286,43 @@ export function ActivityEditorPage() {
           </div>
         )}
 
-        {/* Sub-activities link (for editing existing session activities) */}
+        {/* Sub-activities section (for session activities being edited) */}
         {needsChildren && isEditing && (
-          <button
-            onClick={() => navigate(`/activity/${activityId}/children`)}
-            className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-800
-              hover:bg-slate-700 transition-colors"
-          >
-            <div>
-              <div className="font-medium">Manage Sub-activities</div>
-              <div className="text-sm text-slate-400">{childActivities.length} items</div>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm text-slate-400">Sub-activities</label>
+              <button
+                onClick={handleAddChild}
+                className="text-sm text-blue-400 hover:text-blue-300"
+              >
+                + Add
+              </button>
             </div>
-            <span className="text-slate-400">→</span>
-          </button>
+
+            {childActivities.length === 0 ? (
+              <div className="text-center py-6 bg-slate-800 rounded-xl">
+                <p className="text-slate-400">No sub-activities yet</p>
+                <p className="text-sm text-slate-500">Add items to track during a session</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {childActivities.map((child) => (
+                  <button
+                    key={child.id}
+                    onClick={() => handleEditChild(child.id)}
+                    className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-800
+                      hover:bg-slate-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{child.emoji}</span>
+                      <span className="font-medium">{child.name}</span>
+                    </div>
+                    <span className="text-slate-400">→</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Delete button (only when editing) */}

@@ -7,7 +7,6 @@ import { StatsPage } from './pages/StatsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { SessionScreen } from './pages/SessionScreen'
 import { ActivityEditorPage } from './pages/ActivityEditorPage'
-import { ChildActivitiesPage } from './pages/ChildActivitiesPage'
 import { useActivityStore } from './stores/activityStore'
 import { useEventStore } from './stores/eventStore'
 import { seedDatabase } from './db/seed'
@@ -41,7 +40,6 @@ function AppContent() {
         <Route path="/session/:activityId" element={<SessionScreen />} />
         <Route path="/activity/new" element={<ActivityEditorPage />} />
         <Route path="/activity/:activityId/edit" element={<ActivityEditorPage />} />
-        <Route path="/activity/:activityId/children" element={<ChildActivitiesPage />} />
       </Routes>
       {!hideBottomNav && <BottomNav />}
       <Logger />
