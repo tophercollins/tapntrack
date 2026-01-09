@@ -49,15 +49,25 @@ export const useEventStore = create<EventState>((set, get) => ({
       timestamp: new Date(),
     }
     await db.events.add(event)
-    // Update todayEvents immediately for responsive UI
+    // Update both events and todayEvents immediately for responsive UI
+    const currentEvents = get().events
     const currentToday = get().todayEvents
-    set({ todayEvents: [...currentToday, event] })
+    set({
+      events: [event, ...currentEvents],
+      todayEvents: [...currentToday, event],
+    })
     return event
   },
 
   deleteEvent: async (id: string) => {
     await db.events.delete(id)
-    await get().loadTodayEvents()
+    // Update both events and todayEvents
+    const currentEvents = get().events
+    const currentToday = get().todayEvents
+    set({
+      events: currentEvents.filter((e) => e.id !== id),
+      todayEvents: currentToday.filter((e) => e.id !== id),
+    })
   },
 
   getEventsForActivity: async (activityId: string, days = 30) => {
