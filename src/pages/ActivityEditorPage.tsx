@@ -171,13 +171,14 @@ export function ActivityEditorPage() {
   // Determine back button behavior
   const handleBack = () => {
     if (parentId) {
-      // Creating child - go back to parent
-      navigate(`/activity/${parentId}/edit`)
+      // Creating child - go back to parent edit page
+      navigate(`/activity/${parentId}/edit`, { replace: true })
     } else if (existingActivity?.parentId) {
-      // Editing child - go back to parent
-      navigate(`/activity/${existingActivity.parentId}/edit`)
+      // Editing child - go back to parent edit page
+      navigate(`/activity/${existingActivity.parentId}/edit`, { replace: true })
     } else {
-      navigate(-1)
+      // Base activity - go home
+      navigate('/', { replace: true })
     }
   }
 
@@ -187,8 +188,9 @@ export function ActivityEditorPage() {
       <header className="flex items-center justify-between px-4 pt-safe">
         <div className="pt-4 pb-2">
           <button
+            type="button"
             onClick={handleBack}
-            className="text-blue-400 hover:text-blue-300"
+            className="text-blue-400 hover:text-blue-300 active:scale-95 transition-transform"
           >
             Cancel
           </button>
