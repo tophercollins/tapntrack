@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { useEventStore } from '../stores/eventStore'
+import { useUIStore } from '../stores/uiStore'
 import { hapticTap, hapticSuccess } from '../utils/haptics'
 import type { Activity } from '../types'
 
@@ -9,7 +10,9 @@ export function SessionScreen() {
   const { activityId } = useParams<{ activityId: string }>()
   const { activities, getChildren } = useActivityStore()
   const { todayEvents, addEvent } = useEventStore()
+  const { showError } = useUIStore()
   const [sessionCounts, setSessionCounts] = useState<Record<string, number>>({})
+  const savingRef = useRef<Set<string>>(new Set())
 
   const activity = activities.find((a) => a.id === activityId)
   const childActivities = activityId ? getChildren(activityId) : []
@@ -32,15 +35,25 @@ export function SessionScreen() {
   }
 
   const handleChildTap = async (child: Activity) => {
+    // Prevent duplicate taps while saving
+    if (savingRef.current.has(child.id)) return
+    savingRef.current.add(child.id)
+
     hapticTap()
 
-    await addEvent({ activityId: child.id })
+    try {
+      await addEvent({ activityId: child.id })
 
-    hapticSuccess()
-    setSessionCounts((prev) => ({
-      ...prev,
-      [child.id]: (prev[child.id] || 0) + 1,
-    }))
+      hapticSuccess()
+      setSessionCounts((prev) => ({
+        ...prev,
+        [child.id]: (prev[child.id] || 0) + 1,
+      }))
+    } catch {
+      showError('Failed to save. Please try again.')
+    } finally {
+      savingRef.current.delete(child.id)
+    }
   }
 
   const totalToday = Object.values(sessionCounts).reduce((sum, count) => sum + count, 0)

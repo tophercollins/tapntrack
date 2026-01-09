@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
+import { useUIStore } from '../stores/uiStore'
 import { db } from '../db/database'
 import type { Activity, TrackingType } from '../types'
 
@@ -21,6 +22,7 @@ export function ActivityEditorPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { activities, getChildren, loadActivities, deleteActivity } = useActivityStore()
+  const { showError } = useUIStore()
 
   // Check if we're creating a child activity (parentId in query params)
   const parentId = searchParams.get('parent')
@@ -29,6 +31,11 @@ export function ActivityEditorPage() {
   // activityId will be "new" for new activities, or an actual ID for editing
   const isEditing = activityId !== undefined && activityId !== 'new'
   const existingActivity = isEditing ? activities.find((a) => a.id === activityId && !a.deletedAt) : undefined
+
+  // For editing child activities, find the parent (cached to avoid duplicate searches)
+  const existingParent = existingActivity?.parentId
+    ? activities.find((a) => a.id === existingActivity.parentId)
+    : undefined
 
   // Get children if editing a session-type activity
   const childActivities = isEditing && activityId ? getChildren(activityId) : []
@@ -63,83 +70,97 @@ export function ActivityEditorPage() {
     existingActivity?.trackingType || 'tap'
   )
   const [unit, setUnit] = useState(existingActivity?.unit || '')
+  const [isSaving, setIsSaving] = useState(false)
   const emojiInputRef = useRef<HTMLInputElement>(null)
 
   const handleSave = async () => {
-    if (!emoji || !name) return
+    if (!emoji || !name || isSaving) return
 
-    const id = isEditing && activityId ? activityId : crypto.randomUUID()
+    setIsSaving(true)
+    try {
+      const id = isEditing && activityId ? activityId : crypto.randomUUID()
 
-    // Determine parent for this activity
-    const effectiveParentId = isEditing
-      ? existingActivity?.parentId
-      : parentId || undefined
+      // Determine parent for this activity
+      const effectiveParentId = isEditing
+        ? existingActivity?.parentId
+        : parentId || undefined
 
-    // Calculate sort order based on siblings (excluding deleted)
-    let sortOrder: number
-    if (effectiveParentId) {
-      // Child activity - count active siblings only
-      const siblings = activities.filter((a) => a.parentId === effectiveParentId && !a.deletedAt)
-      sortOrder = existingActivity?.sortOrder ?? siblings.length
-    } else {
-      // Base activity - count active base activities only
-      const baseActivities = activities.filter((a) => a.isBase && !a.deletedAt)
-      sortOrder = existingActivity?.sortOrder ?? baseActivities.length
-    }
+      // Calculate sort order based on siblings (excluding deleted)
+      let sortOrder: number
+      if (effectiveParentId) {
+        // Child activity - count active siblings only
+        const siblings = activities.filter((a) => a.parentId === effectiveParentId && !a.deletedAt)
+        sortOrder = existingActivity?.sortOrder ?? siblings.length
+      } else {
+        // Base activity - count active base activities only
+        const baseActivities = activities.filter((a) => a.isBase && !a.deletedAt)
+        sortOrder = existingActivity?.sortOrder ?? baseActivities.length
+      }
 
-    // Pick color - inherit from parent if child, otherwise use default rotation
-    const activeBaseCount = activities.filter((a) => a.isBase && !a.deletedAt).length
-    const color = existingActivity?.color
-      || parentActivity?.color
-      || defaultColors[activeBaseCount % defaultColors.length]
+      // Pick color - inherit from parent if child, otherwise use default rotation
+      const activeBaseCount = activities.filter((a) => a.isBase && !a.deletedAt).length
+      const color = existingActivity?.color
+        || parentActivity?.color
+        || defaultColors[activeBaseCount % defaultColors.length]
 
-    const activity: Activity = {
-      id,
-      name,
-      emoji,
-      color,
-      trackingType,
-      unit: unit || undefined,
-      createdAt: existingActivity?.createdAt || new Date(),
-      sortOrder,
-      isBase: !effectiveParentId,
-      parentId: effectiveParentId,
-    }
+      const activity: Activity = {
+        id,
+        name,
+        emoji,
+        color,
+        trackingType,
+        unit: unit || undefined,
+        createdAt: existingActivity?.createdAt || new Date(),
+        sortOrder,
+        isBase: !effectiveParentId,
+        parentId: effectiveParentId,
+      }
 
-    if (isEditing) {
-      await db.activities.update(id, activity)
-    } else {
-      await db.activities.add(activity)
-    }
+      if (isEditing) {
+        await db.activities.update(id, activity)
+      } else {
+        await db.activities.add(activity)
+      }
 
-    await loadActivities()
+      await loadActivities()
 
-    // Navigate appropriately after save
-    if (!isEditing && trackingType === 'session' && !effectiveParentId) {
-      // New session activity - go straight to add first sub-activity
-      navigate(`/activity/new?parent=${id}`, { replace: true })
-    } else if (effectiveParentId) {
-      // Child activity - go back to parent edit page
-      navigate(`/activity/${effectiveParentId}/edit`, { replace: true })
-    } else {
-      navigate('/')
+      // Navigate appropriately after save
+      if (!isEditing && trackingType === 'session' && !effectiveParentId) {
+        // New session activity - go straight to add first sub-activity
+        navigate(`/activity/new?parent=${id}`, { replace: true })
+      } else if (effectiveParentId) {
+        // Child activity - go back to parent edit page
+        navigate(`/activity/${effectiveParentId}/edit`, { replace: true })
+      } else {
+        navigate('/')
+      }
+    } catch {
+      showError('Failed to save activity. Please try again.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!activityId) return
+    if (!activityId || isSaving) return
     if (!confirm('Delete this activity? Historical data will be preserved.')) return
 
-    const deletedParentId = existingActivity?.parentId
+    setIsSaving(true)
+    try {
+      const deletedParentId = existingActivity?.parentId
 
-    // Soft delete - marks activity and children as deleted but preserves events
-    await deleteActivity(activityId)
+      // Soft delete - marks activity and children as deleted but preserves events
+      await deleteActivity(activityId)
 
-    // Navigate back appropriately
-    if (deletedParentId) {
-      navigate(`/activity/${deletedParentId}/edit`, { replace: true })
-    } else {
-      navigate('/')
+      // Navigate back appropriately
+      if (deletedParentId) {
+        navigate(`/activity/${deletedParentId}/edit`, { replace: true })
+      } else {
+        navigate('/')
+      }
+    } catch {
+      showError('Failed to delete activity. Please try again.')
+      setIsSaving(false)
     }
   }
 
@@ -188,22 +209,22 @@ export function ActivityEditorPage() {
         <div className="pt-4 pb-2">
           <button
             onClick={handleSave}
-            disabled={!emoji || !name}
+            disabled={!emoji || !name || isSaving}
             className="text-blue-400 hover:text-blue-300 disabled:text-slate-600 font-semibold"
           >
-            Save
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </header>
 
       {/* Parent indicator for child activities */}
-      {(parentActivity || (existingActivity && !existingActivity.isBase)) && (
+      {(parentActivity || existingParent) && (
         <div className="px-4 py-2 bg-slate-900 border-b border-slate-800">
           <div className="text-sm text-slate-400">
             Sub-activity of{' '}
             <span className="text-white">
-              {parentActivity?.emoji || activities.find(a => a.id === existingActivity?.parentId)?.emoji}{' '}
-              {parentActivity?.name || activities.find(a => a.id === existingActivity?.parentId)?.name}
+              {parentActivity?.emoji || existingParent?.emoji}{' '}
+              {parentActivity?.name || existingParent?.name}
             </span>
           </div>
         </div>

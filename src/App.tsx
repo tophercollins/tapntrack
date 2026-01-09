@@ -9,19 +9,26 @@ import { SessionScreen } from './pages/SessionScreen'
 import { ActivityEditorPage } from './pages/ActivityEditorPage'
 import { useActivityStore } from './stores/activityStore'
 import { useEventStore } from './stores/eventStore'
+import { useUIStore } from './stores/uiStore'
 import { seedDatabase } from './db/seed'
 
 function AppContent() {
   const location = useLocation()
   const { loadActivities } = useActivityStore()
   const { loadTodayEvents, loadEvents } = useEventStore()
+  const { showError } = useUIStore()
 
   useEffect(() => {
     const init = async () => {
-      await seedDatabase()
-      await loadActivities()
-      await loadTodayEvents()
-      await loadEvents()
+      try {
+        await seedDatabase()
+        await loadActivities()
+        await loadTodayEvents()
+        await loadEvents()
+      } catch (error) {
+        console.error('Failed to initialize app:', error)
+        showError('Failed to load data. Please refresh.')
+      }
     }
     init()
   }, [])

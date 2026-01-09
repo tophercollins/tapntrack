@@ -24,8 +24,9 @@ export function ActivityGrid() {
   const navigate = useNavigate()
   const { getBaseActivities, reorderActivities } = useActivityStore()
   const { todayEvents, addEvent } = useEventStore()
-  const { openNumber, openDuration, showConfirmation } = useUIStore()
+  const { openNumber, openDuration, showConfirmation, showError } = useUIStore()
   const [isDragMode, setIsDragMode] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const baseActivities = getBaseActivities()
 
@@ -43,15 +44,22 @@ export function ActivityGrid() {
   }
 
   const handleActivityTap = async (activity: Activity) => {
-    if (isDragMode) return
+    if (isDragMode || isSaving) return
 
     hapticTap()
 
     switch (activity.trackingType) {
       case 'tap':
-        await addEvent({ activityId: activity.id })
-        hapticSuccess()
-        showConfirmation(`${activity.emoji} Logged!`)
+        setIsSaving(true)
+        try {
+          await addEvent({ activityId: activity.id })
+          hapticSuccess()
+          showConfirmation(`${activity.emoji} Logged!`)
+        } catch {
+          showError('Failed to save. Please try again.')
+        } finally {
+          setIsSaving(false)
+        }
         break
 
       case 'session':

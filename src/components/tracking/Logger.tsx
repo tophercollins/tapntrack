@@ -4,9 +4,10 @@ import { BottomSheet } from '../ui/BottomSheet'
 import { NumberPad } from '../ui/NumberPad'
 import { Timer } from '../ui/Timer'
 import { Confirmation } from '../ui/Confirmation'
+import { ErrorToast } from '../ui/ErrorToast'
 
 export function Logger() {
-  const { logger, closeLogger, showConfirmation } = useUIStore()
+  const { logger, closeLogger, showConfirmation, showError } = useUIStore()
   const { addEvent } = useEventStore()
 
   if (logger.type === 'closed') {
@@ -17,31 +18,45 @@ export function Logger() {
     return <Confirmation message={logger.message} />
   }
 
+  if (logger.type === 'error') {
+    return <ErrorToast message={logger.message} />
+  }
+
   const handleNumberConfirm = async (value: number) => {
     if (logger.type !== 'number') return
 
-    await addEvent({
-      activityId: logger.activity.id,
-      value,
-    })
+    try {
+      await addEvent({
+        activityId: logger.activity.id,
+        value,
+      })
 
-    const label = `${logger.activity.emoji} ${value} ${logger.activity.unit || ''}`
+      const label = `${logger.activity.emoji} ${value} ${logger.activity.unit || ''}`
 
-    closeLogger()
-    showConfirmation(`${label} logged!`)
+      closeLogger()
+      showConfirmation(`${label} logged!`)
+    } catch {
+      closeLogger()
+      showError('Failed to save. Please try again.')
+    }
   }
 
   const handleTimerStop = async (duration: number) => {
     if (logger.type !== 'duration') return
 
-    await addEvent({
-      activityId: logger.activity.id,
-      duration,
-    })
+    try {
+      await addEvent({
+        activityId: logger.activity.id,
+        duration,
+      })
 
-    const mins = Math.floor(duration / 60)
-    closeLogger()
-    showConfirmation(`${logger.activity.emoji} ${mins}min logged!`)
+      const mins = Math.floor(duration / 60)
+      closeLogger()
+      showConfirmation(`${logger.activity.emoji} ${mins}min logged!`)
+    } catch {
+      closeLogger()
+      showError('Failed to save. Please try again.')
+    }
   }
 
   return (
