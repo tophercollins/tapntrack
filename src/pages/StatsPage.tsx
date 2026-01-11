@@ -2,14 +2,8 @@ import { useMemo } from 'react'
 import { Header } from '../components/layout/Header'
 import { useEventStore } from '../stores/eventStore'
 import { useActivityStore } from '../stores/activityStore'
+import { getStartOfDay } from '../utils/date'
 import type { Activity } from '../types'
-
-// Helper to get start of day
-function getStartOfDay(date: Date): Date {
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  return start
-}
 
 // Helper to get day name
 function getDayName(date: Date, short = true): string {

@@ -4,7 +4,7 @@ import { useUIStore } from '../stores/uiStore'
 import { db } from '../db/database'
 
 export function SettingsPage() {
-  const { activities, loadActivities } = useActivityStore()
+  const { activities } = useActivityStore()
   const { showError } = useUIStore()
 
   // Filter out deleted activities for display
@@ -13,9 +13,12 @@ export function SettingsPage() {
   const handleClearData = async () => {
     if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
       try {
-        await db.events.clear()
-        await db.activities.clear()
-        await loadActivities()
+        // Use transaction to ensure both clears succeed or both fail (atomic)
+        await db.transaction('rw', [db.events, db.activities], async () => {
+          await db.events.clear()
+          await db.activities.clear()
+        })
+        // Reload page to reset all state cleanly
         window.location.reload()
       } catch {
         showError('Failed to clear data. Please try again.')

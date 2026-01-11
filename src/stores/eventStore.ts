@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { db } from '../db/database'
+import { getStartOfDay } from '../utils/date'
 import type { Event } from '../types'
 
 interface EventState {
@@ -13,13 +14,7 @@ interface EventState {
   getEventsForActivity: (activityId: string, days?: number) => Promise<Event[]>
 }
 
-function getStartOfDay(date: Date): Date {
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  return start
-}
-
-export const useEventStore = create<EventState>((set, get) => ({
+export const useEventStore = create<EventState>((set) => ({
   events: [],
   todayEvents: [],
   loading: true,
