@@ -148,22 +148,20 @@ export function ActivityEditorPage() {
     if (!activityId || isSaving) return
     if (!confirm('Delete this activity? Historical data will be preserved.')) return
 
-    setIsSaving(true)
+    const deletedParentId = existingActivity?.parentId
+
+    // Navigate FIRST to avoid "Activity not found" flash during re-render
+    if (deletedParentId) {
+      navigate(`/activity/${deletedParentId}/edit`, { replace: true })
+    } else {
+      navigate('/', { replace: true })
+    }
+
+    // Then delete in background (navigation already happened)
     try {
-      const deletedParentId = existingActivity?.parentId
-
-      // Soft delete - marks activity and children as deleted but preserves events
       await deleteActivity(activityId)
-
-      // Navigate back appropriately
-      if (deletedParentId) {
-        navigate(`/activity/${deletedParentId}/edit`, { replace: true })
-      } else {
-        navigate('/')
-      }
     } catch {
       showError('Failed to delete activity. Please try again.')
-      setIsSaving(false)
     }
   }
 
