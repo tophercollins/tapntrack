@@ -43,10 +43,29 @@ export function ActivityGrid() {
     return todayEvents.filter((e) => e.activityId === activityId).length
   }
 
+  const getProgressForActivity = (activity: Activity): number => {
+    const events = todayEvents.filter((e) => e.activityId === activity.id)
+
+    switch (activity.trackingType) {
+      case 'tap':
+      case 'session':
+        // Count of events
+        return events.length
+      case 'number':
+        // Sum of values
+        return events.reduce((sum, e) => sum + (e.value || 0), 0)
+      case 'duration':
+        // Sum of durations in minutes (stored as seconds)
+        return events.reduce((sum, e) => sum + Math.floor((e.duration || 0) / 60), 0)
+      default:
+        return events.length
+    }
+  }
+
   const isActivityComplete = (activity: Activity) => {
     if (!activity.dailyTarget) return false
-    const count = getCountForActivity(activity.id)
-    return count >= activity.dailyTarget
+    const progress = getProgressForActivity(activity)
+    return progress >= activity.dailyTarget
   }
 
   const handleActivityTap = async (activity: Activity) => {

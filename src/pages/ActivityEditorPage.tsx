@@ -309,25 +309,31 @@ export function ActivityEditorPage() {
           </div>
         )}
 
-        {/* Daily target input (for tap activities) */}
-        {trackingType === 'tap' && (
-          <div>
-            <label className="block text-sm text-slate-400 mb-2">Daily Target (optional)</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              min="1"
-              value={dailyTarget}
-              onChange={(e) => setDailyTarget(e.target.value)}
-              placeholder="e.g., 2 (shows tick when done)"
-              className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white
-                placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              When you reach the target, a tick will show it's done for the day
-            </p>
-          </div>
-        )}
+        {/* Daily target input (for all activity types) */}
+        <div>
+          <label className="block text-sm text-slate-400 mb-2">Daily Target (optional)</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            value={dailyTarget}
+            onChange={(e) => setDailyTarget(e.target.value)}
+            placeholder={
+              trackingType === 'tap' ? 'e.g., 2 times' :
+              trackingType === 'number' ? `e.g., 8 ${unit || 'total'}` :
+              trackingType === 'duration' ? 'e.g., 30 minutes total' :
+              'e.g., 2 sessions'
+            }
+            className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white
+              placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            {trackingType === 'tap' && 'Number of times to complete today'}
+            {trackingType === 'number' && `Total ${unit || 'amount'} to reach today`}
+            {trackingType === 'duration' && 'Total minutes to reach today'}
+            {trackingType === 'session' && 'Number of sessions to complete today'}
+          </p>
+        </div>
 
         {/* Sub-activities section (for session activities being edited) */}
         {needsChildren && isEditing && (
