@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { useEventStore } from '../stores/eventStore'
 import { useUIStore } from '../stores/uiStore'
@@ -8,6 +8,7 @@ import type { Activity } from '../types'
 
 export function SessionScreen() {
   const { activityId } = useParams<{ activityId: string }>()
+  const navigate = useNavigate()
   const { activities, getChildren } = useActivityStore()
   const { todayEvents, addEvent } = useEventStore()
   const { showError } = useUIStore()
@@ -63,14 +64,13 @@ export function SessionScreen() {
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-safe relative z-10 bg-slate-950">
         <div className="pt-4 pb-2">
-          <Link
-            to="/"
-            replace
+          <button
+            onClick={() => navigate('/', { replace: true })}
             className="flex items-center gap-2 text-blue-400 hover:text-blue-300 active:scale-95 transition-transform"
           >
             <span>←</span>
             <span>Done</span>
-          </Link>
+          </button>
         </div>
         <div className="pt-4 pb-2 flex items-center gap-2">
           <span className="text-2xl">{activity.emoji}</span>

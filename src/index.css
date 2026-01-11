@@ -54,10 +54,11 @@
   animation: wiggle 0.3s ease-in-out infinite;
 }
 
-/* Disable text selection on buttons for mobile feel */
-button {
+/* Better touch handling for mobile */
+button, a {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  touch-action: manipulation;
 }
 
 /* Smooth scrolling */
