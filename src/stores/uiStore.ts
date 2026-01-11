@@ -10,6 +10,7 @@ type LoggerState =
 
 interface UIState {
   logger: LoggerState
+  toastTimeoutId: ReturnType<typeof setTimeout> | null
   openNumber: (activity: Activity) => void
   openDuration: (activity: Activity) => void
   showConfirmation: (message: string) => void
@@ -17,32 +18,45 @@ interface UIState {
   closeLogger: () => void
 }
 
-export const useUIStore = create<UIState>((set) => ({
+export const useUIStore = create<UIState>((set, get) => ({
   logger: { type: 'closed' },
+  toastTimeoutId: null,
 
   openNumber: (activity) => {
-    set({ logger: { type: 'number', activity } })
+    const { toastTimeoutId } = get()
+    if (toastTimeoutId) clearTimeout(toastTimeoutId)
+    set({ logger: { type: 'number', activity }, toastTimeoutId: null })
   },
 
   openDuration: (activity) => {
-    set({ logger: { type: 'duration', activity, startTime: Date.now() } })
+    const { toastTimeoutId } = get()
+    if (toastTimeoutId) clearTimeout(toastTimeoutId)
+    set({ logger: { type: 'duration', activity, startTime: Date.now() }, toastTimeoutId: null })
   },
 
   showConfirmation: (message) => {
-    set({ logger: { type: 'confirmation', message } })
-    setTimeout(() => {
-      set({ logger: { type: 'closed' } })
+    const { toastTimeoutId } = get()
+    if (toastTimeoutId) clearTimeout(toastTimeoutId)
+
+    const newTimeoutId = setTimeout(() => {
+      set({ logger: { type: 'closed' }, toastTimeoutId: null })
     }, 1500)
+    set({ logger: { type: 'confirmation', message }, toastTimeoutId: newTimeoutId })
   },
 
   showError: (message) => {
-    set({ logger: { type: 'error', message } })
-    setTimeout(() => {
-      set({ logger: { type: 'closed' } })
+    const { toastTimeoutId } = get()
+    if (toastTimeoutId) clearTimeout(toastTimeoutId)
+
+    const newTimeoutId = setTimeout(() => {
+      set({ logger: { type: 'closed' }, toastTimeoutId: null })
     }, 3000)
+    set({ logger: { type: 'error', message }, toastTimeoutId: newTimeoutId })
   },
 
   closeLogger: () => {
-    set({ logger: { type: 'closed' } })
+    const { toastTimeoutId } = get()
+    if (toastTimeoutId) clearTimeout(toastTimeoutId)
+    set({ logger: { type: 'closed' }, toastTimeoutId: null })
   },
 }))

@@ -124,10 +124,7 @@ export function ActivityEditorPage() {
       await loadActivities()
 
       // Navigate appropriately after save
-      if (!isEditing && trackingType === 'session' && !effectiveParentId) {
-        // New session activity - go straight to add first sub-activity
-        navigate(`/activity/new?parent=${id}`, { replace: true })
-      } else if (effectiveParentId) {
+      if (effectiveParentId) {
         // Child activity - go back to parent edit page
         navigate(`/activity/${effectiveParentId}/edit`, { replace: true })
       } else {
@@ -308,8 +305,7 @@ export function ActivityEditorPage() {
             placeholder={
               trackingType === 'tap' ? 'e.g., 2 times' :
               trackingType === 'number' ? `e.g., 8 ${unit || 'total'}` :
-              trackingType === 'duration' ? 'e.g., 30 minutes total' :
-              'e.g., 2 sessions'
+              'e.g., 30 minutes total'
             }
             className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white
               placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
