@@ -59,7 +59,7 @@ export function SessionScreen() {
   const totalToday = Object.values(sessionCounts).reduce((sum, count) => sum + count, 0)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white pb-36">
+    <div className="min-h-screen bg-slate-950 text-white pb-40">
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-safe">
         <div className="pt-4 pb-2">

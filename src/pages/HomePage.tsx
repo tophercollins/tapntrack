@@ -11,7 +11,7 @@ export function HomePage() {
     : 'Tap to start tracking'
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-24">
       <Header title="Tap N Track" subtitle={subtitle} />
       <ActivityGrid />
     </div>

@@ -192,7 +192,7 @@ export function ActivityEditorPage() {
       : '/'  // Base activity - go home
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white pb-20">
+    <div className="min-h-screen bg-slate-950 text-white pb-24">
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-safe">
         <div className="pt-4 pb-2">

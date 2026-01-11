@@ -33,8 +33,10 @@ export function ActivityGrid() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: isDragMode ? 0 : 500,
-        tolerance: 5,
+        // In edit mode: require small movement to distinguish tap from drag
+        // In normal mode: require long press to enter drag
+        delay: isDragMode ? 100 : 500,
+        tolerance: isDragMode ? 10 : 5,
       },
     })
   )

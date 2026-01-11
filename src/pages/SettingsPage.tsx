@@ -24,7 +24,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-24">
       <Header title="Settings" subtitle="Customize your experience" />
 
       <div className="p-4 space-y-4">

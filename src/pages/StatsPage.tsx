@@ -126,7 +126,7 @@ export function StatsPage() {
   const activitiesWithTargets = baseActivities.filter((a) => a.dailyTarget)
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-24">
       <Header title="Stats" subtitle="Your activity overview" />
 
       <div className="p-4 space-y-4">
