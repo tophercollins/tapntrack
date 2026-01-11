@@ -61,7 +61,7 @@ export function SessionScreen() {
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-40">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 pt-safe">
+      <header className="flex items-center justify-between px-4 pt-safe relative z-10 bg-slate-950">
         <div className="pt-4 pb-2">
           <Link
             to="/"
@@ -107,7 +107,7 @@ export function SessionScreen() {
       </div>
 
       {/* Session summary - positioned above bottom nav */}
-      <div className="fixed bottom-16 left-0 right-0 bg-slate-900 border-t border-slate-800 p-4">
+      <div className="fixed bottom-16 left-0 right-0 bg-slate-900 border-t border-slate-800 p-4 z-30">
         <div className="flex items-center justify-between">
           <span className="text-slate-400">Today's total</span>
           <span className="text-2xl font-bold text-blue-400">{totalToday}</span>

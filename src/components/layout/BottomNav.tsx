@@ -9,7 +9,7 @@ const navItems = [
 export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800
-      pb-safe">
+      pb-safe z-40">
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => (
           <NavLink

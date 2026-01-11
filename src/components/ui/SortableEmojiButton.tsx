@@ -10,6 +10,7 @@ interface SortableEmojiButtonProps {
   count?: number
   isDragMode: boolean
   isComplete?: boolean
+  isAnyDragging?: boolean
 }
 
 export function SortableEmojiButton({
@@ -21,6 +22,7 @@ export function SortableEmojiButton({
   count,
   isDragMode,
   isComplete,
+  isAnyDragging,
 }: SortableEmojiButtonProps) {
   const {
     attributes,
@@ -71,14 +73,15 @@ export function SortableEmojiButton({
           )}
         </button>
         {/* Edit indicator - larger and positioned outside button for easier tapping */}
-        {isDragMode && !isDragging && (
+        {/* Hide during any drag to prevent pointer event conflicts */}
+        {isDragMode && !isAnyDragging && (
           <button
             onClick={(e) => {
               e.stopPropagation()
               onClick()
             }}
             className="absolute -top-2 -right-2 bg-blue-500 text-white
-              text-sm rounded-full w-8 h-8 flex items-center justify-center
+              text-lg rounded-full w-9 h-9 flex items-center justify-center
               shadow-lg active:scale-95 transition-transform z-10"
           >
             ✎

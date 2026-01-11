@@ -26,6 +26,7 @@ export function ActivityGrid() {
   const { todayEvents, addEvent } = useEventStore()
   const { openNumber, openDuration, showConfirmation, showError } = useUIStore()
   const [isDragMode, setIsDragMode] = useState(false)
+  const [isAnyDragging, setIsAnyDragging] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
   const baseActivities = getBaseActivities()
@@ -119,6 +120,7 @@ export function ActivityGrid() {
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
+    setIsAnyDragging(false)
     const { active, over } = event
 
     if (over && active.id !== over.id) {
@@ -134,6 +136,7 @@ export function ActivityGrid() {
   }
 
   const handleDragStart = () => {
+    setIsAnyDragging(true)
     if (!isDragMode) {
       setIsDragMode(true)
     }
@@ -180,6 +183,7 @@ export function ActivityGrid() {
                 count={getCountForActivity(activity.id)}
                 isDragMode={isDragMode}
                 isComplete={isActivityComplete(activity)}
+                isAnyDragging={isAnyDragging}
               />
             ))}
 
