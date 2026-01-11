@@ -1,20 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { Header } from '../components/layout/Header'
 import { useEventStore } from '../stores/eventStore'
 import { useActivityStore } from '../stores/activityStore'
-import { getStartOfDay } from '../utils/date'
+import { getStartOfDay, getDayName, formatDayDate } from '../utils/date'
 import type { Activity } from '../types'
-
-// Helper to get day name
-function getDayName(date: Date, short = true): string {
-  return date.toLocaleDateString('en-US', { weekday: short ? 'short' : 'long' })
-}
-
-// Helper to format date as "Mon 6"
-function formatDayDate(date: Date): string {
-  const day = date.toLocaleDateString('en-US', { weekday: 'short' })
-  return `${day} ${date.getDate()}`
-}
 
 export function StatsPage() {
   const { events } = useEventStore()

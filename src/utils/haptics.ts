@@ -12,9 +12,3 @@ export async function hapticSuccess() {
     await Haptics.notification({ type: NotificationType.Success })
   }
 }
-
-export async function hapticWarning() {
-  if (Capacitor.isNativePlatform()) {
-    await Haptics.notification({ type: NotificationType.Warning })
-  }
-}

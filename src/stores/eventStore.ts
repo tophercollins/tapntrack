@@ -22,9 +22,11 @@ export const useEventStore = create<EventState>((set) => ({
   loadEvents: async () => {
     set({ loading: true })
     const events = await db.events.toArray()
-    // Sort by timestamp descending
-    events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    set({ events, loading: false })
+    // Sort by timestamp descending (use spread to avoid mutating original array)
+    const sortedEvents = [...events].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )
+    set({ events: sortedEvents, loading: false })
   },
 
   loadTodayEvents: async () => {

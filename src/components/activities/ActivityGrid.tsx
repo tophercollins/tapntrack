@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -42,33 +42,42 @@ export function ActivityGrid() {
     })
   )
 
-  const getCountForActivity = (activityId: string) => {
-    return todayEvents.filter((e) => e.activityId === activityId).length
-  }
+  const getCountForActivity = useCallback(
+    (activityId: string) => {
+      return todayEvents.filter((e) => e.activityId === activityId).length
+    },
+    [todayEvents]
+  )
 
-  const getProgressForActivity = (activity: Activity): number => {
-    const events = todayEvents.filter((e) => e.activityId === activity.id)
+  const getProgressForActivity = useCallback(
+    (activity: Activity): number => {
+      const events = todayEvents.filter((e) => e.activityId === activity.id)
 
-    switch (activity.trackingType) {
-      case 'tap':
-        // Count of events
-        return events.length
-      case 'number':
-        // Sum of values
-        return events.reduce((sum, e) => sum + (e.value || 0), 0)
-      case 'duration':
-        // Sum of durations in minutes (stored as seconds)
-        return events.reduce((sum, e) => sum + Math.floor((e.duration || 0) / 60), 0)
-      default:
-        return events.length
-    }
-  }
+      switch (activity.trackingType) {
+        case 'tap':
+          // Count of events
+          return events.length
+        case 'number':
+          // Sum of values
+          return events.reduce((sum, e) => sum + (e.value || 0), 0)
+        case 'duration':
+          // Sum of durations in minutes (stored as seconds)
+          return events.reduce((sum, e) => sum + Math.floor((e.duration || 0) / 60), 0)
+        default:
+          return events.length
+      }
+    },
+    [todayEvents]
+  )
 
-  const isActivityComplete = (activity: Activity) => {
-    if (!activity.dailyTarget) return false
-    const progress = getProgressForActivity(activity)
-    return progress >= activity.dailyTarget
-  }
+  const isActivityComplete = useCallback(
+    (activity: Activity) => {
+      if (!activity.dailyTarget) return false
+      const progress = getProgressForActivity(activity)
+      return progress >= activity.dailyTarget
+    },
+    [getProgressForActivity]
+  )
 
   const handleActivityTap = async (activity: Activity) => {
     if (isSaving) return
