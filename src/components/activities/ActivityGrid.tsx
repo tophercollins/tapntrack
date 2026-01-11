@@ -50,9 +50,15 @@ export function ActivityGrid() {
   }
 
   const handleActivityTap = async (activity: Activity) => {
-    if (isDragMode || isSaving) return
+    if (isSaving) return
 
     hapticTap()
+
+    // In edit mode, navigate to edit page
+    if (isDragMode) {
+      navigate(`/activity/${activity.id}/edit`)
+      return
+    }
 
     switch (activity.trackingType) {
       case 'tap':

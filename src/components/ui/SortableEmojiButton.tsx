@@ -37,12 +37,6 @@ export function SortableEmojiButton({
     opacity: isDragging ? 0.5 : 1,
   }
 
-  const handleClick = () => {
-    if (!isDragMode) {
-      onClick()
-    }
-  }
-
   return (
     <div
       ref={setNodeRef}
@@ -50,7 +44,7 @@ export function SortableEmojiButton({
       className="flex flex-col items-center gap-1 group"
     >
       <button
-        onClick={handleClick}
+        onClick={onClick}
         {...(isDragMode ? { ...attributes, ...listeners } : {})}
         className={`w-20 h-20 rounded-2xl flex items-center justify-center
           bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all
@@ -66,6 +60,15 @@ export function SortableEmojiButton({
               text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
           >
             {count}
+          </span>
+        )}
+        {/* Edit indicator in drag mode */}
+        {isDragMode && !isDragging && (
+          <span
+            className="absolute -top-1 -right-1 bg-slate-600 text-white
+              text-xs rounded-full w-5 h-5 flex items-center justify-center"
+          >
+            ✎
           </span>
         )}
         {/* Completion overlay */}
