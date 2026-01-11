@@ -1,6 +1,5 @@
 export type TrackingType =
   | 'tap'        // Single tap = logged (e.g., "took vitamins")
-  | 'session'    // Has children - tap to drill down (e.g., bouldering grades)
   | 'number'     // Tap → enter number (e.g., glasses of water)
   | 'duration'   // Tap to start/stop timer (e.g., meditation)
 

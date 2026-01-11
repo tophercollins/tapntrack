@@ -51,7 +51,6 @@ export function ActivityGrid() {
 
     switch (activity.trackingType) {
       case 'tap':
-      case 'session':
         // Count of events
         return events.length
       case 'number':
@@ -94,10 +93,6 @@ export function ActivityGrid() {
         } finally {
           setIsSaving(false)
         }
-        break
-
-      case 'session':
-        navigate(`/session/${activity.id}`)
         break
 
       case 'number':

@@ -5,7 +5,6 @@ import { Logger } from './components/tracking/Logger'
 import { HomePage } from './pages/HomePage'
 import { StatsPage } from './pages/StatsPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { SessionScreen } from './pages/SessionScreen'
 import { ActivityEditorPage } from './pages/ActivityEditorPage'
 import { useActivityStore } from './stores/activityStore'
 import { useEventStore } from './stores/eventStore'
@@ -38,7 +37,6 @@ function AppContent() {
         <Route path="/" element={<HomePage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/session/:activityId" element={<SessionScreen />} />
         <Route path="/activity/new" element={<ActivityEditorPage />} />
         <Route path="/activity/:activityId/edit" element={<ActivityEditorPage />} />
       </Routes>

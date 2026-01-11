@@ -9,7 +9,6 @@ const trackingTypes: { type: TrackingType; label: string; icon: string; descript
   { type: 'tap', label: 'Quick Tap', icon: '👆', description: 'One tap = logged' },
   { type: 'number', label: 'Counter', icon: '🔢', description: 'Enter a number each time' },
   { type: 'duration', label: 'Timer', icon: '⏱️', description: 'Track time spent' },
-  { type: 'session', label: 'Session', icon: '📋', description: 'Multiple sub-activities to tap' },
 ]
 
 const defaultColors = [
@@ -21,7 +20,7 @@ export function ActivityEditorPage() {
   const { activityId } = useParams<{ activityId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { activities, getChildren, loadActivities, deleteActivity } = useActivityStore()
+  const { activities, loadActivities, deleteActivity } = useActivityStore()
   const { showError } = useUIStore()
 
   // Check if we're creating a child activity (parentId in query params)
@@ -36,9 +35,6 @@ export function ActivityEditorPage() {
   const existingParent = existingActivity?.parentId
     ? activities.find((a) => a.id === existingActivity.parentId)
     : undefined
-
-  // Get children if editing a session-type activity
-  const childActivities = isEditing && activityId ? getChildren(activityId) : []
 
   // Handle case where activity doesn't exist or was deleted
   if (isEditing && !existingActivity) {
@@ -165,15 +161,6 @@ export function ActivityEditorPage() {
     }
   }
 
-  const handleAddChild = () => {
-    navigate(`/activity/new?parent=${activityId}`)
-  }
-
-  const handleEditChild = (childId: string) => {
-    navigate(`/activity/${childId}/edit`)
-  }
-
-  const needsChildren = trackingType === 'session'
   const needsUnit = trackingType === 'number' || trackingType === 'duration'
 
   // Determine header title
@@ -331,48 +318,8 @@ export function ActivityEditorPage() {
             {trackingType === 'tap' && 'Number of times to complete today'}
             {trackingType === 'number' && `Total ${unit || 'amount'} to reach today`}
             {trackingType === 'duration' && 'Total minutes to reach today'}
-            {trackingType === 'session' && 'Number of sessions to complete today'}
           </p>
         </div>
-
-        {/* Sub-activities section (for session activities being edited) */}
-        {needsChildren && isEditing && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm text-slate-400">Sub-activities</label>
-              <button
-                onClick={handleAddChild}
-                className="text-sm text-blue-400 hover:text-blue-300"
-              >
-                + Add
-              </button>
-            </div>
-
-            {childActivities.length === 0 ? (
-              <div className="text-center py-6 bg-slate-800 rounded-xl">
-                <p className="text-slate-400">No sub-activities yet</p>
-                <p className="text-sm text-slate-500">Add items to track during a session</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {childActivities.map((child) => (
-                  <button
-                    key={child.id}
-                    onClick={() => handleEditChild(child.id)}
-                    className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-800
-                      hover:bg-slate-700 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{child.emoji}</span>
-                      <span className="font-medium">{child.name}</span>
-                    </div>
-                    <span className="text-slate-400">→</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Delete button (only when editing) */}
         {isEditing && (
