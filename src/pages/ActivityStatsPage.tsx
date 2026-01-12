@@ -31,8 +31,8 @@ export function ActivityStatsPage() {
 
   // Calculate stats
   const stats = useMemo(() => {
-    if (!activityEvents.length) {
-      return { total: 0, streak: 0, bestStreak: 0, avgPerDay: 0, activeDays: 0 }
+    if (!activityEvents.length || !activity) {
+      return { total: 0, streak: 0, bestStreak: 0, avgPerDay: 0, activeDays: 0, totalLabel: 'logs' }
     }
 
     // Group events by day
@@ -44,7 +44,23 @@ export function ActivityStatsPage() {
     })
 
     const activeDays = eventsByDay.size
-    const total = activityEvents.length
+
+    // Calculate total based on tracking type
+    let total: number
+    let totalLabel: string
+    switch (activity.trackingType) {
+      case 'number':
+        total = activityEvents.reduce((sum, e) => sum + (e.value || 0), 0)
+        totalLabel = activity.unit || 'total'
+        break
+      case 'duration':
+        total = activityEvents.reduce((sum, e) => sum + Math.floor((e.duration || 0) / 60), 0)
+        totalLabel = 'minutes'
+        break
+      default:
+        total = activityEvents.length
+        totalLabel = 'logs'
+    }
 
     // Calculate current streak
     let streak = 0
@@ -84,8 +100,8 @@ export function ActivityStatsPage() {
 
     const avgPerDay = activeDays > 0 ? (total / activeDays).toFixed(1) : '0'
 
-    return { total, streak, bestStreak, avgPerDay: parseFloat(avgPerDay), activeDays }
-  }, [activityEvents])
+    return { total, streak, bestStreak, avgPerDay: parseFloat(avgPerDay), activeDays, totalLabel }
+  }, [activityEvents, activity])
 
   if (!activity) {
     return (
@@ -146,7 +162,7 @@ export function ActivityStatsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-800 rounded-xl p-4">
               <div className="text-3xl font-bold text-blue-400">{stats.total}</div>
-              <div className="text-sm text-slate-400">Total logs</div>
+              <div className="text-sm text-slate-400">Total {stats.totalLabel}</div>
             </div>
             <div className="bg-slate-800 rounded-xl p-4">
               <div className="text-3xl font-bold text-orange-400">{stats.streak}</div>
@@ -165,7 +181,11 @@ export function ActivityStatsPage() {
           {/* Activity Heatmap */}
           <div className="bg-slate-800 rounded-xl p-4">
             <h3 className="text-sm font-medium text-slate-400 mb-3">Activity</h3>
-            <ActivityHeatmap events={activityEvents} days={parseInt(timeRange)} />
+            <ActivityHeatmap
+              events={activityEvents}
+              days={parseInt(timeRange)}
+              trackingType={activity.trackingType}
+            />
           </div>
 
           {/* Time Series Chart */}

@@ -42,13 +42,6 @@ export function ActivityGrid() {
     })
   )
 
-  const getCountForActivity = useCallback(
-    (activityId: string) => {
-      return todayEvents.filter((e) => e.activityId === activityId).length
-    },
-    [todayEvents]
-  )
-
   const getProgressForActivity = useCallback(
     (activity: Activity): number => {
       const events = todayEvents.filter((e) => e.activityId === activity.id)
@@ -189,7 +182,7 @@ export function ActivityGrid() {
                 label={activity.name}
                 color={activity.color}
                 onClick={() => handleActivityTap(activity)}
-                count={getCountForActivity(activity.id)}
+                count={getProgressForActivity(activity)}
                 isDragMode={isDragMode}
                 isComplete={isActivityComplete(activity)}
                 isAnyDragging={isAnyDragging}

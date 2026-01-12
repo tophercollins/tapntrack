@@ -1,23 +1,38 @@
 import { useMemo } from 'react'
 import { getStartOfDay } from '../../utils/date'
-import type { Event } from '../../types'
+import type { Event, TrackingType } from '../../types'
 
 interface ActivityHeatmapProps {
   events: Event[]
   days: number
+  trackingType?: TrackingType
 }
 
-export function ActivityHeatmap({ events, days }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ events, days, trackingType = 'tap' }: ActivityHeatmapProps) {
   const heatmapData = useMemo(() => {
-    // Group events by day and count
-    const countByDay = new Map<string, number>()
+    // Group events by day and calculate value based on tracking type
+    const valueByDay = new Map<string, number>()
     events.forEach((event) => {
       const dayKey = getStartOfDay(new Date(event.timestamp)).toISOString()
-      countByDay.set(dayKey, (countByDay.get(dayKey) || 0) + 1)
+      const currentValue = valueByDay.get(dayKey) || 0
+
+      let addValue: number
+      switch (trackingType) {
+        case 'number':
+          addValue = event.value || 0
+          break
+        case 'duration':
+          addValue = Math.floor((event.duration || 0) / 60)
+          break
+        default:
+          addValue = 1
+      }
+
+      valueByDay.set(dayKey, currentValue + addValue)
     })
 
     // Find max for color scaling
-    const maxCount = Math.max(...Array.from(countByDay.values()), 1)
+    const maxValue = Math.max(...Array.from(valueByDay.values()), 1)
 
     // Generate array of days
     const today = getStartOfDay(new Date())
@@ -27,19 +42,19 @@ export function ActivityHeatmap({ events, days }: ActivityHeatmapProps) {
       const date = new Date(today)
       date.setDate(date.getDate() - i)
       const dayKey = getStartOfDay(date).toISOString()
-      const count = countByDay.get(dayKey) || 0
+      const value = valueByDay.get(dayKey) || 0
 
       // Calculate level (0-4) for color intensity
       let level = 0
-      if (count > 0) {
-        level = Math.min(4, Math.ceil((count / maxCount) * 4))
+      if (value > 0) {
+        level = Math.min(4, Math.ceil((value / maxValue) * 4))
       }
 
-      daysArray.push({ date, count, level })
+      daysArray.push({ date, count: value, level })
     }
 
-    return { days: daysArray, maxCount }
-  }, [events, days])
+    return { days: daysArray, maxValue }
+  }, [events, days, trackingType])
 
   // Group days into weeks for GitHub-style layout
   const weeks = useMemo(() => {
