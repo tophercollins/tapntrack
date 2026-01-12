@@ -8,6 +8,7 @@ const defaultActivities: Activity[] = [
     emoji: '💊',
     color: '#22c55e',
     trackingType: 'tap',
+    dailyTarget: 1,
     createdAt: new Date(),
     sortOrder: 0,
     isBase: true,
@@ -19,7 +20,7 @@ const defaultActivities: Activity[] = [
     color: '#3b82f6',
     trackingType: 'number',
     unit: 'reps',
-    dailyTarget: 30,
+    dailyTarget: 50,
     createdAt: new Date(),
     sortOrder: 1,
     isBase: true,
@@ -30,6 +31,7 @@ const defaultActivities: Activity[] = [
     emoji: '🧘',
     color: '#a855f7',
     trackingType: 'duration',
+    dailyTarget: 10,
     createdAt: new Date(),
     sortOrder: 2,
     isBase: true,
@@ -40,6 +42,7 @@ const defaultActivities: Activity[] = [
     emoji: '🧗',
     color: '#f97316',
     trackingType: 'custom',
+    dailyTarget: 10,
     dimensions: [
       {
         id: 'grade',
