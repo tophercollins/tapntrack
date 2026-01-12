@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo } from 'react'
 import { Header } from '../components/layout/Header'
 import { useEventStore } from '../stores/eventStore'
 import { useActivityStore } from '../stores/activityStore'

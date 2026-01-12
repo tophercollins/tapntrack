@@ -3,18 +3,128 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { useUIStore } from '../stores/uiStore'
 import { db } from '../db/database'
-import type { Activity, TrackingType } from '../types'
+import type { Activity, TrackingType, Dimension } from '../types'
 
 const trackingTypes: { type: TrackingType; label: string; icon: string; description: string }[] = [
   { type: 'tap', label: 'Quick Tap', icon: '👆', description: 'One tap = logged' },
   { type: 'number', label: 'Counter', icon: '🔢', description: 'Enter a number each time' },
   { type: 'duration', label: 'Timer', icon: '⏱️', description: 'Track time spent' },
+  { type: 'custom', label: 'Custom', icon: '🎨', description: 'Build your own fields' },
 ]
 
 const defaultColors = [
   '#22c55e', '#3b82f6', '#f97316', '#ef4444', '#a855f7',
   '#ec4899', '#14b8a6', '#f59e0b', '#6366f1', '#78716c',
 ]
+
+// Sub-component for editing a single dimension
+function DimensionEditor({
+  dimension,
+  index,
+  onUpdate,
+  onRemove,
+  onAddOption,
+  onRemoveOption,
+  onSetDefault,
+}: {
+  dimension: Dimension
+  index: number
+  onUpdate: (updates: Partial<Dimension>) => void
+  onRemove: () => void
+  onAddOption: (option: string) => void
+  onRemoveOption: (option: string) => void
+  onSetDefault: (option: string) => void
+}) {
+  const [newOption, setNewOption] = useState('')
+
+  const handleAddOption = () => {
+    if (newOption.trim()) {
+      onAddOption(newOption.trim())
+      setNewOption('')
+    }
+  }
+
+  return (
+    <div className="bg-slate-800 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-slate-500">Field {index + 1}</span>
+        <button
+          onClick={onRemove}
+          className="text-xs text-red-400 hover:text-red-300"
+        >
+          Remove
+        </button>
+      </div>
+
+      {/* Field name */}
+      <input
+        type="text"
+        value={dimension.name}
+        onChange={(e) => onUpdate({ name: e.target.value })}
+        placeholder="Field name (e.g., Grade, Outcome)"
+        className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm
+          placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+      />
+
+      {/* Options */}
+      <div className="mb-2">
+        <span className="text-xs text-slate-400">Options (tap to set as default)</span>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-3">
+        {dimension.options.map((option) => (
+          <div
+            key={option}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm cursor-pointer transition-all ${
+              dimension.defaultValue === option
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+            onClick={() => onSetDefault(option)}
+          >
+            <span>{option}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onRemoveOption(option)
+              }}
+              className="ml-1 text-slate-400 hover:text-red-400"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Add option input */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={newOption}
+          onChange={(e) => setNewOption(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
+          placeholder="Add option..."
+          className="flex-1 px-3 py-2 rounded-lg bg-slate-700 text-white text-sm
+            placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          onClick={handleAddOption}
+          disabled={!newOption.trim()}
+          className="px-3 py-2 bg-slate-700 rounded-lg text-sm text-blue-400
+            hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Add
+        </button>
+      </div>
+
+      {dimension.defaultValue && (
+        <p className="text-xs text-slate-500 mt-2">
+          Default: {dimension.defaultValue} (pre-selected when logging)
+        </p>
+      )}
+    </div>
+  )
+}
 
 export function ActivityEditorPage() {
   const { activityId } = useParams<{ activityId: string }>()
@@ -67,11 +177,72 @@ export function ActivityEditorPage() {
   )
   const [unit, setUnit] = useState(existingActivity?.unit || '')
   const [dailyTarget, setDailyTarget] = useState(existingActivity?.dailyTarget?.toString() || '')
+  const [dimensions, setDimensions] = useState<Dimension[]>(
+    existingActivity?.dimensions || []
+  )
   const [isSaving, setIsSaving] = useState(false)
   const emojiInputRef = useRef<HTMLInputElement>(null)
 
+  // Dimension management functions
+  const addDimension = () => {
+    const newDimension: Dimension = {
+      id: crypto.randomUUID(),
+      name: '',
+      options: [],
+      required: true,
+    }
+    setDimensions([...dimensions, newDimension])
+  }
+
+  const updateDimension = (id: string, updates: Partial<Dimension>) => {
+    setDimensions(dimensions.map(d => d.id === id ? { ...d, ...updates } : d))
+  }
+
+  const removeDimension = (id: string) => {
+    setDimensions(dimensions.filter(d => d.id !== id))
+  }
+
+  const addOptionToDimension = (dimensionId: string, option: string) => {
+    if (!option.trim()) return
+    setDimensions(dimensions.map(d => {
+      if (d.id === dimensionId && !d.options.includes(option.trim())) {
+        return { ...d, options: [...d.options, option.trim()] }
+      }
+      return d
+    }))
+  }
+
+  const removeOptionFromDimension = (dimensionId: string, option: string) => {
+    setDimensions(dimensions.map(d => {
+      if (d.id === dimensionId) {
+        const newOptions = d.options.filter(o => o !== option)
+        return {
+          ...d,
+          options: newOptions,
+          defaultValue: d.defaultValue === option ? undefined : d.defaultValue
+        }
+      }
+      return d
+    }))
+  }
+
+  const setDefaultOption = (dimensionId: string, option: string) => {
+    setDimensions(dimensions.map(d => {
+      if (d.id === dimensionId) {
+        return { ...d, defaultValue: d.defaultValue === option ? undefined : option }
+      }
+      return d
+    }))
+  }
+
+  // Validation for custom type
+  const isCustomValid = trackingType !== 'custom' || (
+    dimensions.length > 0 &&
+    dimensions.every(d => d.name.trim() && d.options.length > 0)
+  )
+
   const handleSave = async () => {
-    if (!emoji || !name || isSaving) return
+    if (!emoji || !name || isSaving || !isCustomValid) return
 
     setIsSaving(true)
     try {
@@ -109,6 +280,7 @@ export function ActivityEditorPage() {
         trackingType,
         unit: unit || undefined,
         dailyTarget: parsedDailyTarget && parsedDailyTarget > 0 ? parsedDailyTarget : undefined,
+        dimensions: trackingType === 'custom' ? dimensions : undefined,
         createdAt: existingActivity?.createdAt || new Date(),
         sortOrder,
         isBase: !effectiveParentId,
@@ -116,7 +288,7 @@ export function ActivityEditorPage() {
       }
 
       if (isEditing) {
-        await db.activities.update(id, activity)
+        await db.activities.put(activity)
       } else {
         await db.activities.add(activity)
       }
@@ -159,6 +331,7 @@ export function ActivityEditorPage() {
   }
 
   const needsUnit = trackingType === 'number' || trackingType === 'duration'
+  const isCustomType = trackingType === 'custom'
 
   // Determine header title
   const getHeaderTitle = () => {
@@ -194,7 +367,7 @@ export function ActivityEditorPage() {
         <div className="pt-4 pb-2">
           <button
             onClick={handleSave}
-            disabled={!emoji || !name || isSaving}
+            disabled={!emoji || !name || isSaving || !isCustomValid}
             className="text-blue-400 hover:text-blue-300 disabled:text-slate-600 font-semibold"
           >
             {isSaving ? 'Saving...' : 'Save'}
@@ -293,6 +466,56 @@ export function ActivityEditorPage() {
           </div>
         )}
 
+        {/* Dimension Builder (for custom type) */}
+        {isCustomType && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm text-slate-400">Custom Fields</label>
+              <button
+                onClick={addDimension}
+                className="text-sm text-blue-400 hover:text-blue-300"
+              >
+                + Add Field
+              </button>
+            </div>
+
+            {dimensions.length === 0 ? (
+              <div className="bg-slate-800 rounded-xl p-6 text-center">
+                <p className="text-slate-400 text-sm mb-3">
+                  No fields yet. Add fields to customize what you track.
+                </p>
+                <button
+                  onClick={addDimension}
+                  className="px-4 py-2 bg-blue-600 rounded-lg text-sm hover:bg-blue-500 transition-colors"
+                >
+                  Add Your First Field
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {dimensions.map((dimension, index) => (
+                  <DimensionEditor
+                    key={dimension.id}
+                    dimension={dimension}
+                    index={index}
+                    onUpdate={(updates) => updateDimension(dimension.id, updates)}
+                    onRemove={() => removeDimension(dimension.id)}
+                    onAddOption={(option) => addOptionToDimension(dimension.id, option)}
+                    onRemoveOption={(option) => removeOptionFromDimension(dimension.id, option)}
+                    onSetDefault={(option) => setDefaultOption(dimension.id, option)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {dimensions.length > 0 && !isCustomValid && (
+              <p className="text-xs text-amber-400 mt-2">
+                Each field needs a name and at least one option
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Daily target input (for all activity types) */}
         <div>
           <label className="block text-sm text-slate-400 mb-2">Daily Target (optional)</label>
@@ -305,6 +528,7 @@ export function ActivityEditorPage() {
             placeholder={
               trackingType === 'tap' ? 'e.g., 2 times' :
               trackingType === 'number' ? `e.g., 8 ${unit || 'total'}` :
+              trackingType === 'custom' ? 'e.g., 10 logs' :
               'e.g., 30 minutes total'
             }
             className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white
@@ -314,6 +538,7 @@ export function ActivityEditorPage() {
             {trackingType === 'tap' && 'Number of times to complete today'}
             {trackingType === 'number' && `Total ${unit || 'amount'} to reach today`}
             {trackingType === 'duration' && 'Total minutes to reach today'}
+            {trackingType === 'custom' && 'Number of logs to complete today'}
           </p>
         </div>
 

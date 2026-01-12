@@ -3,6 +3,7 @@ import { useEventStore } from '../../stores/eventStore'
 import { BottomSheet } from '../ui/BottomSheet'
 import { NumberPad } from '../ui/NumberPad'
 import { Timer } from '../ui/Timer'
+import { DimensionPicker } from '../ui/DimensionPicker'
 import { Confirmation } from '../ui/Confirmation'
 import { ErrorToast } from '../ui/ErrorToast'
 
@@ -59,6 +60,25 @@ export function Logger() {
     }
   }
 
+  const handleCustomConfirm = async (values: Record<string, string>) => {
+    if (logger.type !== 'custom') return
+
+    try {
+      await addEvent({
+        activityId: logger.activity.id,
+        dimensionValues: values,
+      })
+
+      // Build a summary of selected values
+      const summary = Object.values(values).join(' / ')
+      closeLogger()
+      showConfirmation(`${logger.activity.emoji} ${summary} logged!`)
+    } catch {
+      closeLogger()
+      showError('Failed to save. Please try again.')
+    }
+  }
+
   return (
     <>
       {logger.type === 'number' && (
@@ -84,6 +104,20 @@ export function Logger() {
           <Timer
             startTime={logger.startTime}
             onStop={handleTimerStop}
+            onCancel={closeLogger}
+          />
+        </BottomSheet>
+      )}
+
+      {logger.type === 'custom' && logger.activity.dimensions && (
+        <BottomSheet
+          isOpen
+          onClose={closeLogger}
+          title={`${logger.activity.emoji} ${logger.activity.name}`}
+        >
+          <DimensionPicker
+            dimensions={logger.activity.dimensions}
+            onConfirm={handleCustomConfirm}
             onCancel={closeLogger}
           />
         </BottomSheet>

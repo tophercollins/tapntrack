@@ -24,7 +24,7 @@ export function ActivityGrid() {
   const navigate = useNavigate()
   const { getBaseActivities, reorderActivities } = useActivityStore()
   const { todayEvents, addEvent } = useEventStore()
-  const { openNumber, openDuration, showConfirmation, showError } = useUIStore()
+  const { openNumber, openDuration, openCustom, showConfirmation, showError } = useUIStore()
   const [isDragMode, setIsDragMode] = useState(false)
   const [isAnyDragging, setIsAnyDragging] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -55,6 +55,7 @@ export function ActivityGrid() {
 
       switch (activity.trackingType) {
         case 'tap':
+        case 'custom':
           // Count of events
           return events.length
         case 'number':
@@ -110,6 +111,10 @@ export function ActivityGrid() {
 
       case 'duration':
         openDuration(activity)
+        break
+
+      case 'custom':
+        openCustom(activity)
         break
     }
   }
