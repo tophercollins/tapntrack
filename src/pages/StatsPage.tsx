@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Header } from '../components/layout/Header'
 import { useEventStore } from '../stores/eventStore'
 import { useActivityStore } from '../stores/activityStore'
@@ -163,13 +164,20 @@ export function StatsPage() {
                 const weekTotal = last7Days.reduce((sum, day) => sum + getCountForDay(activity, day), 0)
 
                 return (
-                  <div key={activity.id}>
+                  <Link
+                    key={activity.id}
+                    to={`/stats/${activity.id}`}
+                    className="block hover:bg-slate-700/50 -mx-2 px-2 py-2 rounded-xl transition-colors"
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xl">{activity.emoji}</span>
                         <span className="text-slate-300">{activity.name}</span>
                       </div>
-                      <span className="text-sm text-slate-400">{weekTotal} this week</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-400">{weekTotal} this week</span>
+                        <span className="text-slate-500">→</span>
+                      </div>
                     </div>
 
                     {/* Day bars */}
@@ -195,7 +203,7 @@ export function StatsPage() {
                         )
                       })}
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>
@@ -210,9 +218,10 @@ export function StatsPage() {
               {baseActivities.map((activity) => {
                 const streak = getStreak(activity)
                 return (
-                  <div
+                  <Link
                     key={activity.id}
-                    className="bg-slate-700 rounded-xl p-3 flex items-center gap-3"
+                    to={`/stats/${activity.id}`}
+                    className="bg-slate-700 rounded-xl p-3 flex items-center gap-3 hover:bg-slate-600 transition-colors"
                   >
                     <span className="text-2xl">{activity.emoji}</span>
                     <div>
@@ -224,7 +233,7 @@ export function StatsPage() {
                       </div>
                       <div className="text-xs text-slate-400 truncate">{activity.name}</div>
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>
@@ -244,13 +253,20 @@ export function StatsPage() {
               {baseActivities.map((activity) => {
                 const total = getTotalCount(activity)
                 return (
-                  <div key={activity.id} className="flex items-center justify-between">
+                  <Link
+                    key={activity.id}
+                    to={`/stats/${activity.id}`}
+                    className="flex items-center justify-between hover:bg-slate-700/50 -mx-2 px-2 py-2 rounded-xl transition-colors"
+                  >
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{activity.emoji}</span>
                       <span className="text-slate-300">{activity.name}</span>
                     </div>
-                    <span className="text-xl font-bold text-blue-400">{total}</span>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl font-bold text-blue-400">{total}</span>
+                      <span className="text-slate-500">→</span>
+                    </div>
+                  </Link>
                 )
               })}
             </div>

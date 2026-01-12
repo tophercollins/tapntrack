@@ -4,6 +4,7 @@ import { BottomNav } from './components/layout/BottomNav'
 import { Logger } from './components/tracking/Logger'
 import { HomePage } from './pages/HomePage'
 import { StatsPage } from './pages/StatsPage'
+import { ActivityStatsPage } from './pages/ActivityStatsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ActivityEditorPage } from './pages/ActivityEditorPage'
 import { useActivityStore } from './stores/activityStore'
@@ -36,6 +37,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/stats" element={<StatsPage />} />
+        <Route path="/stats/:activityId" element={<ActivityStatsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/activity/new" element={<ActivityEditorPage />} />
         <Route path="/activity/:activityId/edit" element={<ActivityEditorPage />} />
