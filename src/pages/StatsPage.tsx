@@ -4,7 +4,7 @@ import { Header } from '../components/layout/Header'
 import { useEventStore } from '../stores/eventStore'
 import { useActivityStore } from '../stores/activityStore'
 import { getStartOfDay, getDayName, formatDayDate } from '../utils/date'
-import type { Activity } from '../types'
+import type { Activity, Event } from '../types'
 
 export function StatsPage() {
   const { events } = useEventStore()
@@ -23,50 +23,83 @@ export function StatsPage() {
     return days
   }, [])
 
-  // Pre-compute event counts per activity per day
+  // Pre-compute events per activity per day (store actual events for value calculation)
   const eventsByActivityByDay = useMemo(() => {
-    const result: Record<string, Record<string, number>> = {}
+    const result: Record<string, Record<string, Event[]>> = {}
 
     events.forEach((event) => {
       const eventDate = getStartOfDay(new Date(event.timestamp)).toISOString()
       if (!result[event.activityId]) {
         result[event.activityId] = {}
       }
-      result[event.activityId][eventDate] = (result[event.activityId][eventDate] || 0) + 1
+      if (!result[event.activityId][eventDate]) {
+        result[event.activityId][eventDate] = []
+      }
+      result[event.activityId][eventDate].push(event)
     })
 
     return result
   }, [events])
 
-  // Get count for activity on specific day (including children)
+  // Get count for activity on specific day (including children) - for display purposes
   const getCountForDay = (activity: Activity, day: Date): number => {
     const dayKey = day.toISOString()
-    let count = eventsByActivityByDay[activity.id]?.[dayKey] || 0
+    let count = eventsByActivityByDay[activity.id]?.[dayKey]?.length || 0
 
     // Add children counts
     const children = getChildren(activity.id)
     children.forEach((child) => {
-      count += eventsByActivityByDay[child.id]?.[dayKey] || 0
+      count += eventsByActivityByDay[child.id]?.[dayKey]?.length || 0
     })
 
     return count
   }
 
-  // Get total count for activity (all time, including children)
-  const getTotalCount = (activity: Activity): number => {
-    let count = 0
-    Object.values(eventsByActivityByDay[activity.id] || {}).forEach((c) => {
-      count += c
+  // Get progress value for activity on specific day (respects tracking type)
+  const getProgressForDay = (activity: Activity, day: Date): number => {
+    const dayKey = day.toISOString()
+    const dayEvents = eventsByActivityByDay[activity.id]?.[dayKey] || []
+
+    // Add children events
+    const children = getChildren(activity.id)
+    const allEvents = [...dayEvents]
+    children.forEach((child) => {
+      const childEvents = eventsByActivityByDay[child.id]?.[dayKey] || []
+      allEvents.push(...childEvents)
     })
 
+    switch (activity.trackingType) {
+      case 'tap':
+      case 'custom':
+        return allEvents.length
+      case 'number':
+        return allEvents.reduce((sum, e) => sum + (e.value || 0), 0)
+      case 'duration':
+        return allEvents.reduce((sum, e) => sum + Math.floor((e.duration || 0) / 60), 0)
+      default:
+        return allEvents.length
+    }
+  }
+
+  // Get total count for activity (all time, including children)
+  const getTotalCount = (activity: Activity): number => {
+    const allEvents: Event[] = []
+
+    // Collect all events for this activity
+    Object.values(eventsByActivityByDay[activity.id] || {}).forEach((dayEvents) => {
+      allEvents.push(...dayEvents)
+    })
+
+    // Collect events from children
     const children = getChildren(activity.id)
     children.forEach((child) => {
-      Object.values(eventsByActivityByDay[child.id] || {}).forEach((c) => {
-        count += c
+      Object.values(eventsByActivityByDay[child.id] || {}).forEach((dayEvents) => {
+        allEvents.push(...dayEvents)
       })
     })
 
-    return count
+    // For display in "All Time" section, just show count
+    return allEvents.length
   }
 
   // Calculate streaks (consecutive days with at least one event)
@@ -120,10 +153,23 @@ export function StatsPage() {
             <h3 className="text-lg font-semibold mb-4">Today's Progress</h3>
             <div className="space-y-4">
               {activitiesWithTargets.map((activity) => {
-                const todayCount = getCountForDay(activity, today)
+                const todayProgress = getProgressForDay(activity, today)
                 const target = activity.dailyTarget || 1
-                const progress = Math.min((todayCount / target) * 100, 100)
-                const isComplete = todayCount >= target
+                const progressPercent = Math.min((todayProgress / target) * 100, 100)
+                const isComplete = todayProgress >= target
+
+                // Get unit label based on tracking type
+                const getUnitLabel = () => {
+                  switch (activity.trackingType) {
+                    case 'number':
+                      return activity.unit || ''
+                    case 'duration':
+                      return 'min'
+                    default:
+                      return ''
+                  }
+                }
+                const unitLabel = getUnitLabel()
 
                 return (
                   <div key={activity.id}>
@@ -133,7 +179,7 @@ export function StatsPage() {
                         <span className="text-slate-300">{activity.name}</span>
                       </div>
                       <span className={`font-bold ${isComplete ? 'text-green-400' : 'text-blue-400'}`}>
-                        {todayCount}/{target}
+                        {todayProgress}/{target}{unitLabel && ` ${unitLabel}`}
                         {isComplete && ' ✓'}
                       </span>
                     </div>
@@ -142,7 +188,7 @@ export function StatsPage() {
                         className={`h-full transition-all duration-300 rounded-full ${
                           isComplete ? 'bg-green-500' : 'bg-blue-500'
                         }`}
-                        style={{ width: `${progress}%` }}
+                        style={{ width: `${progressPercent}%` }}
                       />
                     </div>
                   </div>
