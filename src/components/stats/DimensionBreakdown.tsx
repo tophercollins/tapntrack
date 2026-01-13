@@ -38,37 +38,56 @@ export function DimensionBreakdown({ events, dimensions }: DimensionBreakdownPro
     })
   }, [events, dimensions])
 
-  // Calculate cross-dimension stats (e.g., for bouldering: sends vs attempts by grade)
-  const crossDimensionStats = useMemo(() => {
-    if (dimensions.length < 2) return null
+  // Calculate cross-dimension stats for all dimension pairs
+  const crossDimensionPairs = useMemo(() => {
+    if (dimensions.length < 2) return []
 
-    // Assuming first dimension is the "category" (e.g., Grade)
-    // and second dimension is the "outcome" (e.g., Attempted/Sent)
-    const categoryDim = dimensions[0]
-    const outcomeDim = dimensions[1]
+    // Generate all unique pairs of dimensions
+    const pairs: Array<{
+      categoryDim: Dimension
+      outcomeDim: Dimension
+      stats: Record<string, Record<string, number>>
+    }> = []
 
-    const stats: Record<string, Record<string, number>> = {}
-    categoryDim.options.forEach((cat) => {
-      stats[cat.value] = {}
-      outcomeDim.options.forEach((out) => {
-        stats[cat.value][out.value] = 0
-      })
-    })
+    for (let i = 0; i < dimensions.length; i++) {
+      for (let j = i + 1; j < dimensions.length; j++) {
+        const categoryDim = dimensions[i]
+        const outcomeDim = dimensions[j]
 
-    events.forEach((event) => {
-      const category = event.dimensionValues?.[categoryDim.id]
-      const outcome = event.dimensionValues?.[outcomeDim.id]
-      if (category && outcome && stats[category]) {
-        stats[category][outcome] = (stats[category][outcome] || 0) + 1
+        const stats: Record<string, Record<string, number>> = {}
+        categoryDim.options.forEach((cat) => {
+          stats[cat.value] = {}
+          outcomeDim.options.forEach((out) => {
+            stats[cat.value][out.value] = 0
+          })
+        })
+
+        events.forEach((event) => {
+          const category = event.dimensionValues?.[categoryDim.id]
+          const outcome = event.dimensionValues?.[outcomeDim.id]
+          if (category && outcome && stats[category]) {
+            stats[category][outcome] = (stats[category][outcome] || 0) + 1
+          }
+        })
+
+        pairs.push({ categoryDim, outcomeDim, stats })
       }
-    })
-
-    return {
-      categoryDim,
-      outcomeDim,
-      stats,
     }
+
+    return pairs
   }, [events, dimensions])
+
+  // Color palette for cross-dimension charts
+  const getPairColors = (pairIndex: number) => {
+    const colorPairs = [
+      ['bg-slate-500', 'bg-green-500'],
+      ['bg-slate-500', 'bg-blue-500'],
+      ['bg-slate-500', 'bg-purple-500'],
+      ['bg-slate-500', 'bg-orange-500'],
+      ['bg-slate-500', 'bg-pink-500'],
+    ]
+    return colorPairs[pairIndex % colorPairs.length]
+  }
 
   const getBarColor = (index: number) => {
     const colors = [
@@ -117,59 +136,60 @@ export function DimensionBreakdown({ events, dimensions }: DimensionBreakdownPro
         </div>
       ))}
 
-      {/* Cross-dimension pyramid (like a grade pyramid for climbing) */}
-      {crossDimensionStats && (
-        <div>
-          <h4 className="text-sm font-medium text-slate-300 mb-3">
-            {crossDimensionStats.categoryDim.name} Pyramid
-          </h4>
-          <div className="space-y-2">
-            {crossDimensionStats.categoryDim.options.map((category) => {
-              const categoryStats = crossDimensionStats.stats[category.value]
-              const outcomes = crossDimensionStats.outcomeDim.options
-              const total = outcomes.reduce((sum, out) => sum + (categoryStats[out.value] || 0), 0)
+      {/* Cross-dimension pyramids for all dimension pairs */}
+      {crossDimensionPairs.map((pair, pairIndex) => {
+        const colors = getPairColors(pairIndex)
+        return (
+          <div key={`${pair.categoryDim.id}-${pair.outcomeDim.id}`}>
+            <h4 className="text-sm font-medium text-slate-300 mb-3">
+              {pair.categoryDim.name} × {pair.outcomeDim.name}
+            </h4>
+            <div className="space-y-2">
+              {pair.categoryDim.options.map((category) => {
+                const categoryStats = pair.stats[category.value]
+                const outcomes = pair.outcomeDim.options
+                const total = outcomes.reduce((sum, out) => sum + (categoryStats[out.value] || 0), 0)
 
-              if (total === 0) return null
+                if (total === 0) return null
 
-              return (
-                <div key={category.value} className="flex items-center gap-2">
-                  <span className="w-12 text-sm text-slate-400 text-right">{category.value}</span>
-                  <div className="flex-1 flex h-6 rounded overflow-hidden bg-slate-700">
-                    {outcomes.map((outcome, i) => {
-                      const count = categoryStats[outcome.value] || 0
-                      const width = total > 0 ? (count / total) * 100 : 0
+                return (
+                  <div key={category.value} className="flex items-center gap-2">
+                    <span className="w-12 text-sm text-slate-400 text-right">{category.value}</span>
+                    <div className="flex-1 flex h-6 rounded overflow-hidden bg-slate-700">
+                      {outcomes.map((outcome, i) => {
+                        const count = categoryStats[outcome.value] || 0
+                        const width = total > 0 ? (count / total) * 100 : 0
 
-                      if (count === 0) return null
+                        if (count === 0) return null
 
-                      return (
-                        <div
-                          key={outcome.value}
-                          className={`h-full flex items-center justify-center text-xs font-medium ${
-                            i === 0 ? 'bg-slate-500' : 'bg-green-500'
-                          }`}
-                          style={{ width: `${width}%` }}
-                          title={`${outcome.value}: ${count}`}
-                        >
-                          {count > 0 && width > 15 && count}
-                        </div>
-                      )
-                    })}
+                        return (
+                          <div
+                            key={outcome.value}
+                            className={`h-full flex items-center justify-center text-xs font-medium ${colors[i] || colors[1]}`}
+                            style={{ width: `${width}%` }}
+                            title={`${outcome.value}: ${count}`}
+                          >
+                            {count > 0 && width > 15 && count}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <span className="w-8 text-sm text-slate-500">{total}</span>
                   </div>
-                  <span className="w-8 text-sm text-slate-500">{total}</span>
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+              {pair.outcomeDim.options.map((outcome, i) => (
+                <div key={outcome.value} className="flex items-center gap-1">
+                  <div className={`w-3 h-3 rounded ${colors[i] || colors[1]}`} />
+                  <span>{outcome.value}</span>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
-            {crossDimensionStats.outcomeDim.options.map((outcome, i) => (
-              <div key={outcome.value} className="flex items-center gap-1">
-                <div className={`w-3 h-3 rounded ${i === 0 ? 'bg-slate-500' : 'bg-green-500'}`} />
-                <span>{outcome.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )
+      })}
     </div>
   )
 }
