@@ -1,14 +1,42 @@
 import { useMemo } from 'react'
 import { getStartOfDay } from '../../utils/date'
-import type { Event, TrackingType } from '../../types'
+import type { Event, TrackingType, Dimension } from '../../types'
 
 interface TimeSeriesChartProps {
   events: Event[]
   days: number
   trackingType: TrackingType
+  dimensions?: Dimension[]
+  valueFormula?: 'multiply' | 'add'
 }
 
-export function TimeSeriesChart({ events, days, trackingType }: TimeSeriesChartProps) {
+// Helper to calculate event score for custom type
+function calculateEventScore(
+  event: Event,
+  dimensions: Dimension[],
+  formula: 'multiply' | 'add'
+): number {
+  if (!event.dimensionValues) return 1
+
+  const values = dimensions.map((dim) => {
+    const selectedValue = event.dimensionValues?.[dim.id]
+    const option = dim.options.find((o) => o.value === selectedValue)
+    return option?.numericValue ?? 1
+  })
+
+  if (formula === 'add') {
+    return values.reduce((sum, v) => sum + v, 0)
+  }
+  return values.reduce((product, v) => product * v, 1)
+}
+
+export function TimeSeriesChart({
+  events,
+  days,
+  trackingType,
+  dimensions,
+  valueFormula = 'multiply',
+}: TimeSeriesChartProps) {
   const chartData = useMemo(() => {
     // Determine aggregation period based on days
     let periodDays: number
@@ -50,6 +78,11 @@ export function TimeSeriesChart({ events, days, trackingType }: TimeSeriesChartP
         case 'duration':
           value = periodEvents.reduce((sum, e) => sum + Math.floor((e.duration || 0) / 60), 0)
           break
+        case 'custom':
+          value = dimensions
+            ? periodEvents.reduce((sum, e) => sum + calculateEventScore(e, dimensions, valueFormula), 0)
+            : periodEvents.length
+          break
         default:
           value = periodEvents.length
       }
@@ -63,7 +96,7 @@ export function TimeSeriesChart({ events, days, trackingType }: TimeSeriesChartP
       : 0
 
     return { periods, maxValue, avgValue, periodLabel, periodDays }
-  }, [events, days, trackingType])
+  }, [events, days, trackingType, dimensions, valueFormula])
 
   const formatPeriodLabel = (period: { start: Date; end: Date }) => {
     if (chartData.periodDays === 1) {
@@ -81,6 +114,8 @@ export function TimeSeriesChart({ events, days, trackingType }: TimeSeriesChartP
         return 'total'
       case 'duration':
         return 'minutes'
+      case 'custom':
+        return dimensions ? 'points' : 'logs'
       default:
         return 'logs'
     }

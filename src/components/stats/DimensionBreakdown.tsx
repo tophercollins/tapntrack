@@ -12,7 +12,7 @@ export function DimensionBreakdown({ events, dimensions }: DimensionBreakdownPro
       // Count occurrences of each option
       const counts: Record<string, number> = {}
       dimension.options.forEach((opt) => {
-        counts[opt] = 0
+        counts[opt.value] = 0
       })
 
       events.forEach((event) => {
@@ -49,9 +49,9 @@ export function DimensionBreakdown({ events, dimensions }: DimensionBreakdownPro
 
     const stats: Record<string, Record<string, number>> = {}
     categoryDim.options.forEach((cat) => {
-      stats[cat] = {}
+      stats[cat.value] = {}
       outcomeDim.options.forEach((out) => {
-        stats[cat][out] = 0
+        stats[cat.value][out.value] = 0
       })
     })
 
@@ -125,30 +125,30 @@ export function DimensionBreakdown({ events, dimensions }: DimensionBreakdownPro
           </h4>
           <div className="space-y-2">
             {crossDimensionStats.categoryDim.options.map((category) => {
-              const categoryStats = crossDimensionStats.stats[category]
+              const categoryStats = crossDimensionStats.stats[category.value]
               const outcomes = crossDimensionStats.outcomeDim.options
-              const total = outcomes.reduce((sum, out) => sum + (categoryStats[out] || 0), 0)
+              const total = outcomes.reduce((sum, out) => sum + (categoryStats[out.value] || 0), 0)
 
               if (total === 0) return null
 
               return (
-                <div key={category} className="flex items-center gap-2">
-                  <span className="w-12 text-sm text-slate-400 text-right">{category}</span>
+                <div key={category.value} className="flex items-center gap-2">
+                  <span className="w-12 text-sm text-slate-400 text-right">{category.value}</span>
                   <div className="flex-1 flex h-6 rounded overflow-hidden bg-slate-700">
                     {outcomes.map((outcome, i) => {
-                      const count = categoryStats[outcome] || 0
+                      const count = categoryStats[outcome.value] || 0
                       const width = total > 0 ? (count / total) * 100 : 0
 
                       if (count === 0) return null
 
                       return (
                         <div
-                          key={outcome}
+                          key={outcome.value}
                           className={`h-full flex items-center justify-center text-xs font-medium ${
                             i === 0 ? 'bg-slate-500' : 'bg-green-500'
                           }`}
                           style={{ width: `${width}%` }}
-                          title={`${outcome}: ${count}`}
+                          title={`${outcome.value}: ${count}`}
                         >
                           {count > 0 && width > 15 && count}
                         </div>
@@ -162,9 +162,9 @@ export function DimensionBreakdown({ events, dimensions }: DimensionBreakdownPro
           </div>
           <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
             {crossDimensionStats.outcomeDim.options.map((outcome, i) => (
-              <div key={outcome} className="flex items-center gap-1">
+              <div key={outcome.value} className="flex items-center gap-1">
                 <div className={`w-3 h-3 rounded ${i === 0 ? 'bg-slate-500' : 'bg-green-500'}`} />
-                <span>{outcome}</span>
+                <span>{outcome.value}</span>
               </div>
             ))}
           </div>

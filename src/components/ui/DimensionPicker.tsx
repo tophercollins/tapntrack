@@ -47,15 +47,15 @@ export function DimensionPicker({ dimensions, onConfirm, onCancel }: DimensionPi
           <div className="flex flex-wrap gap-2">
             {dimension.options.map((option) => (
               <button
-                key={option}
-                onClick={() => handleSelect(dimension.id, option)}
+                key={option.value}
+                onClick={() => handleSelect(dimension.id, option.value)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-95 ${
-                  selectedValues[dimension.id] === option
+                  selectedValues[dimension.id] === option.value
                     ? 'bg-blue-600 text-white ring-2 ring-blue-400'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
               >
-                {option}
+                {option.value}
               </button>
             ))}
           </div>

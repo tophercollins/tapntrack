@@ -6,7 +6,27 @@ import { getStartOfDay } from '../utils/date'
 import { ActivityHeatmap } from '../components/stats/ActivityHeatmap'
 import { DimensionBreakdown } from '../components/stats/DimensionBreakdown'
 import { TimeSeriesChart } from '../components/stats/TimeSeriesChart'
-import type { Event } from '../types'
+import type { Event, Dimension } from '../types'
+
+// Helper to calculate event score for custom type
+function calculateEventScore(
+  event: Event,
+  dimensions: Dimension[],
+  formula: 'multiply' | 'add'
+): number {
+  if (!event.dimensionValues) return 1
+
+  const values = dimensions.map((dim) => {
+    const selectedValue = event.dimensionValues?.[dim.id]
+    const option = dim.options.find((o) => o.value === selectedValue)
+    return option?.numericValue ?? 1
+  })
+
+  if (formula === 'add') {
+    return values.reduce((sum, v) => sum + v, 0)
+  }
+  return values.reduce((product, v) => product * v, 1)
+}
 
 export function ActivityStatsPage() {
   const { activityId } = useParams<{ activityId: string }>()
@@ -32,7 +52,7 @@ export function ActivityStatsPage() {
   // Calculate stats
   const stats = useMemo(() => {
     if (!activityEvents.length || !activity) {
-      return { total: 0, streak: 0, bestStreak: 0, avgPerDay: 0, activeDays: 0, totalLabel: 'logs' }
+      return { total: 0, totalPoints: 0, streak: 0, bestStreak: 0, avgPerDay: 0, activeDays: 0, totalLabel: 'logs', logCount: 0 }
     }
 
     // Group events by day
@@ -44,9 +64,11 @@ export function ActivityStatsPage() {
     })
 
     const activeDays = eventsByDay.size
+    const logCount = activityEvents.length
 
     // Calculate total based on tracking type
     let total: number
+    let totalPoints = 0
     let totalLabel: string
     switch (activity.trackingType) {
       case 'number':
@@ -57,8 +79,18 @@ export function ActivityStatsPage() {
         total = activityEvents.reduce((sum, e) => sum + Math.floor((e.duration || 0) / 60), 0)
         totalLabel = 'minutes'
         break
+      case 'custom':
+        total = logCount
+        totalLabel = 'logs'
+        if (activity.dimensions) {
+          totalPoints = activityEvents.reduce(
+            (sum, e) => sum + calculateEventScore(e, activity.dimensions!, activity.valueFormula || 'multiply'),
+            0
+          )
+        }
+        break
       default:
-        total = activityEvents.length
+        total = logCount
         totalLabel = 'logs'
     }
 
@@ -100,7 +132,7 @@ export function ActivityStatsPage() {
 
     const avgPerDay = activeDays > 0 ? (total / activeDays).toFixed(1) : '0'
 
-    return { total, streak, bestStreak, avgPerDay: parseFloat(avgPerDay), activeDays, totalLabel }
+    return { total, totalPoints, streak, bestStreak, avgPerDay: parseFloat(avgPerDay), activeDays, totalLabel, logCount }
   }, [activityEvents, activity])
 
   if (!activity) {
@@ -164,6 +196,12 @@ export function ActivityStatsPage() {
               <div className="text-3xl font-bold text-blue-400">{stats.total}</div>
               <div className="text-sm text-slate-400">Total {stats.totalLabel}</div>
             </div>
+            {activity.trackingType === 'custom' && stats.totalPoints > 0 && (
+              <div className="bg-slate-800 rounded-xl p-4">
+                <div className="text-3xl font-bold text-yellow-400">{stats.totalPoints.toFixed(1)}</div>
+                <div className="text-sm text-slate-400">Total points</div>
+              </div>
+            )}
             <div className="bg-slate-800 rounded-xl p-4">
               <div className="text-3xl font-bold text-orange-400">{stats.streak}</div>
               <div className="text-sm text-slate-400">Current streak</div>
@@ -185,6 +223,8 @@ export function ActivityStatsPage() {
               events={activityEvents}
               days={parseInt(timeRange)}
               trackingType={activity.trackingType}
+              dimensions={activity.dimensions}
+              valueFormula={activity.valueFormula}
             />
           </div>
 
@@ -195,6 +235,8 @@ export function ActivityStatsPage() {
               events={activityEvents}
               days={parseInt(timeRange)}
               trackingType={activity.trackingType}
+              dimensions={activity.dimensions}
+              valueFormula={activity.valueFormula}
             />
           </div>
 

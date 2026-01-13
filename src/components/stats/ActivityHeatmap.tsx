@@ -1,14 +1,42 @@
 import { useMemo } from 'react'
 import { getStartOfDay } from '../../utils/date'
-import type { Event, TrackingType } from '../../types'
+import type { Event, TrackingType, Dimension } from '../../types'
 
 interface ActivityHeatmapProps {
   events: Event[]
   days: number
   trackingType?: TrackingType
+  dimensions?: Dimension[]
+  valueFormula?: 'multiply' | 'add'
 }
 
-export function ActivityHeatmap({ events, days, trackingType = 'tap' }: ActivityHeatmapProps) {
+// Helper to calculate event score for custom type
+function calculateEventScore(
+  event: Event,
+  dimensions: Dimension[],
+  formula: 'multiply' | 'add'
+): number {
+  if (!event.dimensionValues) return 1
+
+  const values = dimensions.map((dim) => {
+    const selectedValue = event.dimensionValues?.[dim.id]
+    const option = dim.options.find((o) => o.value === selectedValue)
+    return option?.numericValue ?? 1
+  })
+
+  if (formula === 'add') {
+    return values.reduce((sum, v) => sum + v, 0)
+  }
+  return values.reduce((product, v) => product * v, 1)
+}
+
+export function ActivityHeatmap({
+  events,
+  days,
+  trackingType = 'tap',
+  dimensions,
+  valueFormula = 'multiply',
+}: ActivityHeatmapProps) {
   const heatmapData = useMemo(() => {
     // Group events by day and calculate value based on tracking type
     const valueByDay = new Map<string, number>()
@@ -23,6 +51,11 @@ export function ActivityHeatmap({ events, days, trackingType = 'tap' }: Activity
           break
         case 'duration':
           addValue = Math.floor((event.duration || 0) / 60)
+          break
+        case 'custom':
+          addValue = dimensions
+            ? calculateEventScore(event, dimensions, valueFormula)
+            : 1
           break
         default:
           addValue = 1
@@ -54,7 +87,7 @@ export function ActivityHeatmap({ events, days, trackingType = 'tap' }: Activity
     }
 
     return { days: daysArray, maxValue }
-  }, [events, days, trackingType])
+  }, [events, days, trackingType, dimensions, valueFormula])
 
   // Group days into weeks for GitHub-style layout
   const weeks = useMemo(() => {

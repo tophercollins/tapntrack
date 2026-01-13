@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { useUIStore } from '../stores/uiStore'
 import { db } from '../db/database'
-import type { Activity, TrackingType, Dimension } from '../types'
+import type { Activity, TrackingType, Dimension, DimensionOption } from '../types'
 
 const trackingTypes: { type: TrackingType; label: string; icon: string; description: string }[] = [
   { type: 'tap', label: 'Quick Tap', icon: '👆', description: 'One tap = logged' },
@@ -26,21 +26,28 @@ function DimensionEditor({
   onAddOption,
   onRemoveOption,
   onSetDefault,
+  onUpdateOptionValue,
 }: {
   dimension: Dimension
   index: number
   onUpdate: (updates: Partial<Dimension>) => void
   onRemove: () => void
-  onAddOption: (option: string) => void
-  onRemoveOption: (option: string) => void
-  onSetDefault: (option: string) => void
+  onAddOption: (option: DimensionOption) => void
+  onRemoveOption: (optionValue: string) => void
+  onSetDefault: (optionValue: string) => void
+  onUpdateOptionValue: (optionValue: string, numericValue: number) => void
 }) {
   const [newOption, setNewOption] = useState('')
+  const [newNumericValue, setNewNumericValue] = useState('1')
 
   const handleAddOption = () => {
     if (newOption.trim()) {
-      onAddOption(newOption.trim())
+      onAddOption({
+        value: newOption.trim(),
+        numericValue: parseFloat(newNumericValue) || 1,
+      })
       setNewOption('')
+      setNewNumericValue('1')
     }
   }
 
@@ -68,27 +75,42 @@ function DimensionEditor({
 
       {/* Options */}
       <div className="mb-2">
-        <span className="text-xs text-slate-400">Options (tap to set as default)</span>
+        <span className="text-xs text-slate-400">Options (tap to set as default, edit value for scoring)</span>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="space-y-2 mb-3">
         {dimension.options.map((option) => (
           <div
-            key={option}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm cursor-pointer transition-all ${
-              dimension.defaultValue === option
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            key={option.value}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+              dimension.defaultValue === option.value
+                ? 'bg-blue-600/30 ring-1 ring-blue-500'
+                : 'bg-slate-700'
             }`}
-            onClick={() => onSetDefault(option)}
           >
-            <span>{option}</span>
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onRemoveOption(option)
-              }}
-              className="ml-1 text-slate-400 hover:text-red-400"
+              onClick={() => onSetDefault(option.value)}
+              className={`flex-1 text-left text-sm ${
+                dimension.defaultValue === option.value ? 'text-white' : 'text-slate-300'
+              }`}
+            >
+              {option.value}
+              {dimension.defaultValue === option.value && (
+                <span className="ml-2 text-xs text-blue-300">(default)</span>
+              )}
+            </button>
+            <input
+              type="number"
+              step="0.1"
+              value={option.numericValue ?? 1}
+              onChange={(e) => onUpdateOptionValue(option.value, parseFloat(e.target.value) || 1)}
+              className="w-16 px-2 py-1 rounded bg-slate-600 text-white text-sm text-center
+                outline-none focus:ring-1 focus:ring-blue-500"
+              title="Scoring value"
+            />
+            <button
+              onClick={() => onRemoveOption(option.value)}
+              className="text-slate-400 hover:text-red-400 px-1"
             >
               ×
             </button>
@@ -107,6 +129,16 @@ function DimensionEditor({
           className="flex-1 px-3 py-2 rounded-lg bg-slate-700 text-white text-sm
             placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
         />
+        <input
+          type="number"
+          step="0.1"
+          value={newNumericValue}
+          onChange={(e) => setNewNumericValue(e.target.value)}
+          placeholder="Value"
+          className="w-16 px-2 py-2 rounded-lg bg-slate-700 text-white text-sm text-center
+            placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
+          title="Scoring value"
+        />
         <button
           onClick={handleAddOption}
           disabled={!newOption.trim()}
@@ -116,12 +148,6 @@ function DimensionEditor({
           Add
         </button>
       </div>
-
-      {dimension.defaultValue && (
-        <p className="text-xs text-slate-500 mt-2">
-          Default: {dimension.defaultValue} (pre-selected when logging)
-        </p>
-      )}
     </div>
   )
 }
@@ -180,6 +206,9 @@ export function ActivityEditorPage() {
   const [dimensions, setDimensions] = useState<Dimension[]>(
     existingActivity?.dimensions || []
   )
+  const [valueFormula, setValueFormula] = useState<'multiply' | 'add'>(
+    existingActivity?.valueFormula || 'multiply'
+  )
   const [isSaving, setIsSaving] = useState(false)
   const emojiInputRef = useRef<HTMLInputElement>(null)
 
@@ -202,34 +231,48 @@ export function ActivityEditorPage() {
     setDimensions(dimensions.filter(d => d.id !== id))
   }
 
-  const addOptionToDimension = (dimensionId: string, option: string) => {
-    if (!option.trim()) return
+  const addOptionToDimension = (dimensionId: string, option: DimensionOption) => {
+    if (!option.value.trim()) return
     setDimensions(dimensions.map(d => {
-      if (d.id === dimensionId && !d.options.includes(option.trim())) {
-        return { ...d, options: [...d.options, option.trim()] }
+      if (d.id === dimensionId && !d.options.some(o => o.value === option.value)) {
+        return { ...d, options: [...d.options, option] }
       }
       return d
     }))
   }
 
-  const removeOptionFromDimension = (dimensionId: string, option: string) => {
+  const removeOptionFromDimension = (dimensionId: string, optionValue: string) => {
     setDimensions(dimensions.map(d => {
       if (d.id === dimensionId) {
-        const newOptions = d.options.filter(o => o !== option)
+        const newOptions = d.options.filter(o => o.value !== optionValue)
         return {
           ...d,
           options: newOptions,
-          defaultValue: d.defaultValue === option ? undefined : d.defaultValue
+          defaultValue: d.defaultValue === optionValue ? undefined : d.defaultValue
         }
       }
       return d
     }))
   }
 
-  const setDefaultOption = (dimensionId: string, option: string) => {
+  const setDefaultOption = (dimensionId: string, optionValue: string) => {
     setDimensions(dimensions.map(d => {
       if (d.id === dimensionId) {
-        return { ...d, defaultValue: d.defaultValue === option ? undefined : option }
+        return { ...d, defaultValue: d.defaultValue === optionValue ? undefined : optionValue }
+      }
+      return d
+    }))
+  }
+
+  const updateOptionNumericValue = (dimensionId: string, optionValue: string, numericValue: number) => {
+    setDimensions(dimensions.map(d => {
+      if (d.id === dimensionId) {
+        return {
+          ...d,
+          options: d.options.map(o =>
+            o.value === optionValue ? { ...o, numericValue } : o
+          )
+        }
       }
       return d
     }))
@@ -281,6 +324,7 @@ export function ActivityEditorPage() {
         unit: unit || undefined,
         dailyTarget: parsedDailyTarget && parsedDailyTarget > 0 ? parsedDailyTarget : undefined,
         dimensions: trackingType === 'custom' ? dimensions : undefined,
+        valueFormula: trackingType === 'custom' ? valueFormula : undefined,
         createdAt: existingActivity?.createdAt || new Date(),
         sortOrder,
         isBase: !effectiveParentId,
@@ -501,8 +545,9 @@ export function ActivityEditorPage() {
                     onUpdate={(updates) => updateDimension(dimension.id, updates)}
                     onRemove={() => removeDimension(dimension.id)}
                     onAddOption={(option) => addOptionToDimension(dimension.id, option)}
-                    onRemoveOption={(option) => removeOptionFromDimension(dimension.id, option)}
-                    onSetDefault={(option) => setDefaultOption(dimension.id, option)}
+                    onRemoveOption={(optionValue) => removeOptionFromDimension(dimension.id, optionValue)}
+                    onSetDefault={(optionValue) => setDefaultOption(dimension.id, optionValue)}
+                    onUpdateOptionValue={(optionValue, numericValue) => updateOptionNumericValue(dimension.id, optionValue, numericValue)}
                   />
                 ))}
               </div>
@@ -512,6 +557,40 @@ export function ActivityEditorPage() {
               <p className="text-xs text-amber-400 mt-2">
                 Each field needs a name and at least one option
               </p>
+            )}
+
+            {/* Value Formula selector */}
+            {dimensions.length > 0 && (
+              <div className="mt-4">
+                <label className="block text-xs text-slate-400 mb-2">Scoring Formula</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setValueFormula('multiply')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm transition-all ${
+                      valueFormula === 'multiply'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    Multiply (×)
+                  </button>
+                  <button
+                    onClick={() => setValueFormula('add')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm transition-all ${
+                      valueFormula === 'add'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    Add (+)
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {valueFormula === 'multiply'
+                    ? 'Score = value1 × value2 × ... (e.g., V4×Send = 5×1 = 5)'
+                    : 'Score = value1 + value2 + ... (e.g., V4+Send = 5+1 = 6)'}
+                </p>
+              </div>
             )}
           </div>
         )}
