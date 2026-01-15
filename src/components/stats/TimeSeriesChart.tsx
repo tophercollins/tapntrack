@@ -136,11 +136,10 @@ export function TimeSeriesChart({
         if (eventDate >= period.start && eventDate <= period.end) {
           period.count++
 
-          // Calculate points value for custom type
+          // Calculate value based on tracking type
           if (hasPoints) {
             period.value += calculateEventScore(event, dimensions!, valueFormula)
           } else {
-            // For other types, calculate appropriate value
             switch (trackingType) {
               case 'number':
                 period.value += event.value || 0
@@ -157,11 +156,24 @@ export function TimeSeriesChart({
       }
     }
 
-    // Determine which value to display based on metric type
-    const displayPeriods = periods.map((p) => ({
-      ...p,
-      displayValue: metricType === 'frequency' ? p.count : p.value,
-    }))
+    // Determine which value to display based on tracking type and metric toggle
+    // For duration/number: always show the tracked value
+    // For tap: show count
+    // For custom: respect the metric toggle (frequency vs points)
+    const displayPeriods = periods.map((p) => {
+      let displayValue: number
+      if (trackingType === 'duration' || trackingType === 'number') {
+        // Always show actual tracked value for these types
+        displayValue = p.value
+      } else if (trackingType === 'custom' && hasPoints) {
+        // Custom with dimensions: respect toggle
+        displayValue = metricType === 'frequency' ? p.count : p.value
+      } else {
+        // Tap or custom without dimensions: show count
+        displayValue = p.count
+      }
+      return { ...p, displayValue }
+    })
 
     const maxValue = Math.max(...displayPeriods.map((p) => p.displayValue), 1)
     const totalValue = displayPeriods.reduce((sum, p) => sum + p.displayValue, 0)
@@ -176,10 +188,15 @@ export function TimeSeriesChart({
   }, [events, days, trackingType, dimensions, valueFormula, periodType, metricType, hasPoints])
 
   // Calculate trend (compare last period to average of previous active periods)
+  // Only show if the current period has activity
   const trend = useMemo(() => {
     if (chartData.periods.length < 2) return null
 
     const lastPeriod = chartData.periods[chartData.periods.length - 1]
+
+    // Don't show trend if current period has no activity
+    if (lastPeriod.displayValue === 0) return null
+
     const previousPeriods = chartData.periods.slice(0, -1).filter((p) => p.displayValue > 0)
 
     if (previousPeriods.length === 0) return null
@@ -197,13 +214,14 @@ export function TimeSeriesChart({
 
   // Get the appropriate label for the metric
   const getMetricLabel = () => {
-    if (metricType === 'frequency') return 'logs'
-    if (hasPoints) return 'points'
     switch (trackingType) {
       case 'number':
         return unit || 'reps'
       case 'duration':
         return 'mins'
+      case 'custom':
+        if (hasPoints && metricType === 'points') return 'points'
+        return 'logs'
       default:
         return 'logs'
     }
@@ -319,7 +337,7 @@ export function TimeSeriesChart({
               {/* Value label */}
               {period.displayValue > 0 && (
                 <span className={`text-xs truncate ${isLast ? 'text-blue-400' : 'text-slate-500'}`}>
-                  {metricType === 'points' && hasPoints
+                  {hasPoints && metricType === 'points'
                     ? period.displayValue.toFixed(1)
                     : Math.round(period.displayValue)}
                 </span>
@@ -372,7 +390,7 @@ export function TimeSeriesChart({
           )}
         </span>
         <span>
-          Total: {metricType === 'points' && hasPoints
+          Total: {hasPoints && metricType === 'points'
             ? chartData.totalValue.toFixed(1)
             : Math.round(chartData.totalValue)} {getMetricLabel()}
         </span>
