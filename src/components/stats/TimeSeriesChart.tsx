@@ -6,11 +6,12 @@ interface TimeSeriesChartProps {
   events: Event[]
   days: number
   trackingType: TrackingType
+  unit?: string
   dimensions?: Dimension[]
   valueFormula?: 'multiply' | 'add'
 }
 
-type PeriodType = 'weekly' | 'monthly'
+type PeriodType = 'daily' | 'weekly' | 'monthly'
 type MetricType = 'points' | 'frequency'
 
 // Helper to calculate event score for custom type
@@ -52,6 +53,7 @@ export function TimeSeriesChart({
   events,
   days,
   trackingType,
+  unit,
   dimensions,
   valueFormula = 'multiply',
 }: TimeSeriesChartProps) {
@@ -69,7 +71,26 @@ export function TimeSeriesChart({
     // Generate period buckets
     const periods: { start: Date; end: Date; label: string; value: number; count: number }[] = []
 
-    if (periodType === 'weekly') {
+    if (periodType === 'daily') {
+      // Generate daily buckets
+      let currentDay = new Date(startDate)
+      currentDay.setHours(0, 0, 0, 0)
+
+      while (currentDay <= today) {
+        const dayEnd = new Date(currentDay)
+        dayEnd.setHours(23, 59, 59, 999)
+
+        periods.push({
+          start: new Date(currentDay),
+          end: dayEnd,
+          label: currentDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          value: 0,
+          count: 0,
+        })
+
+        currentDay.setDate(currentDay.getDate() + 1)
+      }
+    } else if (periodType === 'weekly') {
       // Generate weekly buckets
       let currentWeekStart = getStartOfWeek(startDate)
 
@@ -144,17 +165,25 @@ export function TimeSeriesChart({
 
     const maxValue = Math.max(...displayPeriods.map((p) => p.displayValue), 1)
     const totalValue = displayPeriods.reduce((sum, p) => sum + p.displayValue, 0)
-    const avgValue = displayPeriods.length > 0 ? totalValue / displayPeriods.length : 0
 
-    return { periods: displayPeriods, maxValue, avgValue, totalValue }
+    // Only count periods with activity for the average
+    const activePeriods = displayPeriods.filter((p) => p.displayValue > 0)
+    const avgValue = activePeriods.length > 0
+      ? activePeriods.reduce((sum, p) => sum + p.displayValue, 0) / activePeriods.length
+      : 0
+
+    return { periods: displayPeriods, maxValue, avgValue, totalValue, activePeriodsCount: activePeriods.length }
   }, [events, days, trackingType, dimensions, valueFormula, periodType, metricType, hasPoints])
 
-  // Calculate trend (compare last period to average)
+  // Calculate trend (compare last period to average of previous active periods)
   const trend = useMemo(() => {
     if (chartData.periods.length < 2) return null
 
     const lastPeriod = chartData.periods[chartData.periods.length - 1]
-    const previousPeriods = chartData.periods.slice(0, -1)
+    const previousPeriods = chartData.periods.slice(0, -1).filter((p) => p.displayValue > 0)
+
+    if (previousPeriods.length === 0) return null
+
     const previousAvg = previousPeriods.reduce((sum, p) => sum + p.displayValue, 0) / previousPeriods.length
 
     if (previousAvg === 0) return null
@@ -166,16 +195,29 @@ export function TimeSeriesChart({
     }
   }, [chartData.periods])
 
+  // Get the appropriate label for the metric
   const getMetricLabel = () => {
     if (metricType === 'frequency') return 'logs'
     if (hasPoints) return 'points'
     switch (trackingType) {
       case 'number':
-        return 'total'
+        return unit || 'reps'
       case 'duration':
-        return 'minutes'
+        return 'mins'
       default:
         return 'logs'
+    }
+  }
+
+  // Get period label for display
+  const getPeriodLabel = () => {
+    switch (periodType) {
+      case 'daily':
+        return 'day'
+      case 'weekly':
+        return 'week'
+      case 'monthly':
+        return 'month'
     }
   }
 
@@ -194,6 +236,16 @@ export function TimeSeriesChart({
       <div className="flex gap-2 mb-4">
         {/* Period toggle */}
         <div className="flex bg-slate-700 rounded-lg p-0.5 flex-1">
+          <button
+            onClick={() => setPeriodType('daily')}
+            className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
+              periodType === 'daily'
+                ? 'bg-slate-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Daily
+          </button>
           <button
             onClick={() => setPeriodType('weekly')}
             className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
@@ -249,7 +301,7 @@ export function TimeSeriesChart({
           <span className={`text-sm ${trend.direction === 'up' ? 'text-green-400' : 'text-red-400'}`}>
             {trend.direction === 'up' ? '↑' : '↓'} {trend.percentage}%
           </span>
-          <span className="text-xs text-slate-500">vs previous {periodType === 'weekly' ? 'weeks' : 'months'}</span>
+          <span className="text-xs text-slate-500">vs previous {getPeriodLabel()}s</span>
         </div>
       )}
 
@@ -311,10 +363,13 @@ export function TimeSeriesChart({
         })}
       </div>
 
-      {/* Average line indicator */}
+      {/* Average and total */}
       <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
         <span>
-          Avg: {chartData.avgValue.toFixed(1)} {getMetricLabel()}/{periodType === 'weekly' ? 'week' : 'month'}
+          Avg: {chartData.avgValue.toFixed(1)} {getMetricLabel()}/{getPeriodLabel()}
+          {chartData.activePeriodsCount < chartData.periods.length && (
+            <span className="text-slate-600"> ({chartData.activePeriodsCount} active)</span>
+          )}
         </span>
         <span>
           Total: {metricType === 'points' && hasPoints

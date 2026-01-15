@@ -235,6 +235,7 @@ export function ActivityStatsPage() {
               events={activityEvents}
               days={parseInt(timeRange)}
               trackingType={activity.trackingType}
+              unit={activity.unit}
               dimensions={activity.dimensions}
               valueFormula={activity.valueFormula}
             />
