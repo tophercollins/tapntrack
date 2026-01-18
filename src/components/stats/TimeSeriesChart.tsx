@@ -72,8 +72,12 @@ export function TimeSeriesChart({
     const periods: { start: Date; end: Date; label: string; value: number; count: number }[] = []
 
     if (periodType === 'daily') {
-      // Generate daily buckets
-      let currentDay = new Date(startDate)
+      // For daily view, limit to last 14 days to keep bars visible
+      const maxDailyDays = 14
+      const dailyStartDate = new Date(today)
+      dailyStartDate.setDate(dailyStartDate.getDate() - Math.min(days, maxDailyDays) + 1)
+
+      let currentDay = new Date(dailyStartDate)
       currentDay.setHours(0, 0, 0, 0)
 
       while (currentDay <= today) {
@@ -83,7 +87,7 @@ export function TimeSeriesChart({
         periods.push({
           start: new Date(currentDay),
           end: dayEnd,
-          label: currentDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          label: currentDay.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }),
           value: 0,
           count: 0,
         })
@@ -323,8 +327,15 @@ export function TimeSeriesChart({
         </div>
       )}
 
+      {/* Daily view note */}
+      {periodType === 'daily' && days > 14 && (
+        <div className="text-xs text-slate-500 mb-2">
+          Showing last 14 days
+        </div>
+      )}
+
       {/* Bar chart */}
-      <div className="flex items-end gap-1 h-32">
+      <div className={`flex items-end h-32 ${periodType === 'daily' ? 'gap-0.5' : 'gap-1'}`}>
         {chartData.periods.map((period, index) => {
           const height = chartData.maxValue > 0 ? (period.displayValue / chartData.maxValue) * 100 : 0
           const isLast = index === chartData.periods.length - 1
@@ -334,8 +345,8 @@ export function TimeSeriesChart({
               key={index}
               className="flex-1 flex flex-col items-center justify-end gap-1 min-w-0"
             >
-              {/* Value label */}
-              {period.displayValue > 0 && (
+              {/* Value label - hide for daily to save space */}
+              {period.displayValue > 0 && periodType !== 'daily' && (
                 <span className={`text-xs truncate ${isLast ? 'text-blue-400' : 'text-slate-500'}`}>
                   {hasPoints && metricType === 'points'
                     ? period.displayValue.toFixed(1)
