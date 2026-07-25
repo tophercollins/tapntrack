@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { useUIStore } from '../stores/uiStore'
@@ -172,6 +172,44 @@ export function ActivityEditorPage() {
     ? activities.find((a) => a.id === existingActivity.parentId)
     : undefined
 
+  const [emoji, setEmoji] = useState(existingActivity?.emoji || '')
+  const [name, setName] = useState(existingActivity?.name || '')
+  const [trackingType, setTrackingType] = useState<TrackingType>(
+    existingActivity?.trackingType || 'tap'
+  )
+  const [unit, setUnit] = useState(existingActivity?.unit || '')
+  const [dailyTarget, setDailyTarget] = useState(existingActivity?.dailyTarget?.toString() || '')
+  const [dimensions, setDimensions] = useState<Dimension[]>(
+    existingActivity?.dimensions || []
+  )
+  const [valueFormula, setValueFormula] = useState<'multiply' | 'add'>(
+    existingActivity?.valueFormula || 'multiply'
+  )
+  const [isSaving, setIsSaving] = useState(false)
+  const emojiInputRef = useRef<HTMLInputElement>(null)
+
+  // On a cold deep-link / page refresh, `activities` is empty on the first render, so
+  // `existingActivity` is undefined and the useState initializers above capture empty defaults.
+  // Once activities load asynchronously, hydrate the form from the resolved activity. Keyed on the
+  // id so it fires once per activity and never clobbers an in-progress edit.
+  useEffect(() => {
+    if (!existingActivity) return
+    setEmoji(existingActivity.emoji || '')
+    setName(existingActivity.name || '')
+    setTrackingType(existingActivity.trackingType || 'tap')
+    setUnit(existingActivity.unit || '')
+    setDailyTarget(existingActivity.dailyTarget?.toString() || '')
+    setDimensions(existingActivity.dimensions || [])
+    setValueFormula(existingActivity.valueFormula || 'multiply')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingActivity?.id])
+
+  // NOTE: these guards MUST stay below every hook above. They previously sat before the useState
+  // calls, so a cold deep-link rendered "Activity not found" first (few hooks), then re-rendered
+  // with the activity found (more hooks) once data loaded - a changing hook count that crashed the
+  // whole app with React error #310 (blank white screen). Keeping them last makes the hook count
+  // identical on every render.
+
   // Handle case where activity doesn't exist or was deleted
   if (isEditing && !existingActivity) {
     return (
@@ -195,22 +233,6 @@ export function ActivityEditorPage() {
       </div>
     )
   }
-
-  const [emoji, setEmoji] = useState(existingActivity?.emoji || '')
-  const [name, setName] = useState(existingActivity?.name || '')
-  const [trackingType, setTrackingType] = useState<TrackingType>(
-    existingActivity?.trackingType || 'tap'
-  )
-  const [unit, setUnit] = useState(existingActivity?.unit || '')
-  const [dailyTarget, setDailyTarget] = useState(existingActivity?.dailyTarget?.toString() || '')
-  const [dimensions, setDimensions] = useState<Dimension[]>(
-    existingActivity?.dimensions || []
-  )
-  const [valueFormula, setValueFormula] = useState<'multiply' | 'add'>(
-    existingActivity?.valueFormula || 'multiply'
-  )
-  const [isSaving, setIsSaving] = useState(false)
-  const emojiInputRef = useRef<HTMLInputElement>(null)
 
   // Dimension management functions
   const addDimension = () => {

@@ -1,0 +1,15 @@
+{
+  "name": "tapntrack-probe",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live-app probe: boots the built PWA and drives it headless with Playwright.",
+  "scripts": {
+    "probe": "playwright test",
+    "probe:fresh": "npm --prefix .. run build && playwright test",
+    "probe:headed": "playwright test --headed",
+    "report": "playwright show-report out/report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
