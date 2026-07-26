@@ -1,0 +1,33 @@
+# Tap N Track — Caddy site config.
+#
+# Activation (your deferred final step, once you pick a subdomain):
+#   1. At Namecheap, add a DNS A record:  tapntrack  ->  167.233.145.41
+#      (and optionally an AAAA record -> 2a01:4f8:1c16:18de::1 for IPv6)
+#   2. Install Caddy (Ubuntu):
+#        sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+#        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+#        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+#        sudo apt update && sudo apt install -y caddy
+#   3. Replace YOURDOMAIN below, copy this to /etc/caddy/Caddyfile, then: sudo systemctl reload caddy
+#   4. Open the firewall for 80/443 if one is enabled (ufw allow 80,443/tcp).
+# Caddy then auto-provisions a Let's Encrypt TLS cert — you get https automatically.
+
+tapntrack.YOURDOMAIN.com {
+    encode gzip
+
+    # API + health → the local Node service (systemd: tapntrack-api)
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8787
+    }
+    handle /health {
+        reverse_proxy 127.0.0.1:8787
+    }
+
+    # Everything else → the built PWA (Vite `npm run build` output). SPA fallback to index.html
+    # so BrowserRouter deep links resolve.
+    handle {
+        root * /home/topher/Projects/tapntrack/dist
+        try_files {path} /index.html
+        file_server
+    }
+}
