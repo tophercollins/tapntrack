@@ -111,12 +111,11 @@ See `server/Caddyfile.example` for the full config. Summary:
 3. Open firewall 80/443 if a firewall is enabled.
 Caddy then auto-provisions Let's Encrypt TLS. It serves `dist/` and reverse-proxies `/api/*` + `/health` to `127.0.0.1:8787`.
 
-### 2.7 Frontend build
+### 2.7 Frontend build + deploy
 ```bash
-cd /home/topher/Projects/tapntrack
-VITE_API_URL=https://tapntrack.<domain> npm run build   # output → dist/ (Caddy serves it)
+bash server/deploy-web.sh    # builds with VITE_API_URL and rsyncs dist/ → /var/www/tapntrack
 ```
-Then in the app: **Settings → Connect**, paste the `API_SECRET` → stored in localStorage.
+(Serving from `/var/www/tapntrack` avoids Caddy's `caddy` user needing to traverse `$HOME`, which is `0750`.) Then in the app: **Settings → Connect**, paste the `API_SECRET` → stored in localStorage.
 
 ### 2.8 iOS Shortcut (lock-screen logging)
 One **Get Contents of URL** action:
@@ -184,7 +183,7 @@ Because both sides are Postgres, this is a migration, not a rewrite.
 - Postgres 18, DB `tapntrack`, role `tapntrack`, local only.
 - API: systemd `tapntrack-api`, `127.0.0.1:8787`.
 - Backups: cron `15 3 * * *` → `~/backups/tapntrack/`.
-- Subdomain: **`tapntrack.annanil.com`** (annanil.com uses Namecheap BasicDNS; apex points at Vercel `76.76.21.21`, unaffected). Caddy/DNS: **pending** — add the A record (§2.6) then install Caddy.
+- **Live at `https://tapntrack.annanil.com`** (Caddy v2.11, Let's Encrypt TLS, serving `/var/www/tapntrack` + reverse-proxying `/api`). DNS: Namecheap A record `tapntrack → 167.233.145.41`. ufw allows 22/80/443.
 - Repo: `github.com/tophercollins/tapntrack`, branch `claude/plan-tap-n-track-ibRet`.
 - Legacy: was Vercel (`tapntrackapp` project) + a now-deleted Supabase project `prelcnhtfrchuwmmngyg`.
 

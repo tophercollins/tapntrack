@@ -23,10 +23,11 @@ tapntrack.annanil.com {
         reverse_proxy 127.0.0.1:8787
     }
 
-    # Everything else → the built PWA (Vite `npm run build` output). SPA fallback to index.html
-    # so BrowserRouter deep links resolve.
+    # Everything else → the built PWA, published to /var/www/tapntrack by server/deploy-web.sh
+    # (served from /var/www, not the repo, so Caddy's `caddy` user needn't traverse $HOME).
+    # SPA fallback to index.html so BrowserRouter deep links resolve.
     handle {
-        root * /home/topher/Projects/tapntrack/dist
+        root * /var/www/tapntrack
         try_files {path} /index.html
         file_server
     }
