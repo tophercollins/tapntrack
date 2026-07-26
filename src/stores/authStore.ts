@@ -1,140 +1,69 @@
 import { create } from 'zustand'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import type { User, Session } from '@supabase/supabase-js'
+import { isApiConfigured, getApiKey, setApiKey, clearApiKey, validateKey } from '../lib/api'
+
+// Single-user model: "signed in" == a valid access key is stored. No email/password, no session.
+interface AuthUser {
+  id: string
+}
 
 interface AuthState {
-  user: User | null
-  session: Session | null
+  user: AuthUser | null
   isLoading: boolean
   isConfigured: boolean
   error: string | null
 
-  // Actions
   initialize: () => Promise<void>
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  signIn: (key: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   clearError: () => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  session: null,
   isLoading: true,
-  isConfigured: isSupabaseConfigured(),
+  isConfigured: isApiConfigured(),
   error: null,
 
   initialize: async () => {
-    if (!supabase) {
+    if (!isApiConfigured()) {
       set({ isLoading: false, isConfigured: false })
       return
     }
-
-    try {
-      // Get current session
-      const { data: { session }, error } = await supabase.auth.getSession()
-
-      if (error) {
-        console.error('Error getting session:', error)
-        set({ isLoading: false, error: error.message })
-        return
-      }
-
-      set({
-        session,
-        user: session?.user ?? null,
-        isLoading: false,
-      })
-
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({
-          session,
-          user: session?.user ?? null,
-        })
-      })
-    } catch (err) {
-      console.error('Auth initialization error:', err)
-      set({ isLoading: false })
+    const key = getApiKey()
+    if (!key) {
+      set({ isLoading: false, isConfigured: true, user: null })
+      return
+    }
+    // Optimistically treat a stored key as signed in; validate in the background and drop if stale.
+    set({ isLoading: false, isConfigured: true, user: { id: 'local' } })
+    const ok = await validateKey(key)
+    if (!ok) {
+      clearApiKey()
+      set({ user: null })
     }
   },
 
-  signUp: async (email, password) => {
-    if (!supabase) {
-      return { error: 'Cloud sync not configured' }
-    }
-
+  signIn: async (key) => {
     set({ isLoading: true, error: null })
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      })
-
-      if (error) {
-        set({ isLoading: false, error: error.message })
-        return { error: error.message }
-      }
-
-      set({
-        user: data.user,
-        session: data.session,
-        isLoading: false,
-      })
-
-      return { error: null }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Sign up failed'
-      set({ isLoading: false, error: message })
-      return { error: message }
+    const trimmed = key.trim()
+    if (!trimmed) {
+      set({ isLoading: false, error: 'Enter your access key' })
+      return { error: 'Enter your access key' }
     }
-  },
-
-  signIn: async (email, password) => {
-    if (!supabase) {
-      return { error: 'Cloud sync not configured' }
+    const ok = await validateKey(trimmed)
+    if (!ok) {
+      const msg = 'Invalid access key or server unreachable'
+      set({ isLoading: false, error: msg })
+      return { error: msg }
     }
-
-    set({ isLoading: true, error: null })
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) {
-        set({ isLoading: false, error: error.message })
-        return { error: error.message }
-      }
-
-      set({
-        user: data.user,
-        session: data.session,
-        isLoading: false,
-      })
-
-      return { error: null }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Sign in failed'
-      set({ isLoading: false, error: message })
-      return { error: message }
-    }
+    setApiKey(trimmed)
+    set({ user: { id: 'local' }, isLoading: false })
+    return { error: null }
   },
 
   signOut: async () => {
-    if (!supabase) return
-
-    set({ isLoading: true })
-
-    try {
-      await supabase.auth.signOut()
-      set({ user: null, session: null, isLoading: false })
-    } catch (err) {
-      console.error('Sign out error:', err)
-      set({ isLoading: false })
-    }
+    clearApiKey()
+    set({ user: null })
   },
 
   clearError: () => set({ error: null }),

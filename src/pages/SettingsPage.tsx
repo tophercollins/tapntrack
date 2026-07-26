@@ -93,27 +93,27 @@ export function SettingsPage() {
             <div className="text-slate-400 text-sm">
               <p className="mb-2">Cloud sync is not configured.</p>
               <p className="text-xs text-slate-500">
-                Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env to enable.
+                Set VITE_API_URL in .env (your self-hosted server) to enable.
               </p>
             </div>
           ) : !user ? (
             <div className="space-y-3">
               <p className="text-slate-400 text-sm">
-                Sign in to sync your data across devices.
+                Connect with your access key to sync across devices.
               </p>
               <Link
                 to="/auth"
                 className="block w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500
                   font-medium transition-colors text-center"
               >
-                Sign In / Sign Up
+                Connect
               </Link>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm text-slate-300">{user.email}</div>
+                  <div className="text-sm text-slate-300">Connected</div>
                   <div className="text-xs text-slate-500">Last sync: {formatLastSync()}</div>
                 </div>
                 <button

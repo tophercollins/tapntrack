@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { db } from '../db/database'
+import { trackChange } from '../services/syncService'
+import { schedulePush } from '../lib/pushSync'
 import type { Activity } from '../types'
 
 interface ActivityState {
@@ -38,11 +40,15 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
   addActivity: async (activity: Activity) => {
     await db.activities.add(activity)
+    await trackChange('activities', activity.id, 'create')
+    schedulePush()
     await get().loadActivities()
   },
 
   updateActivity: async (id: string, updates: Partial<Activity>) => {
     await db.activities.update(id, updates)
+    await trackChange('activities', id, 'update')
+    schedulePush()
     await get().loadActivities()
   },
 
@@ -59,10 +65,13 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       const activity = get().activities.find((a) => a.id === activityId)
       if (activity && !activity.deletedAt) {
         await db.activities.update(activityId, { deletedAt: new Date() })
+        // Soft delete = an upsert carrying deleted_at; push as an update.
+        await trackChange('activities', activityId, 'update')
       }
     }
 
     await softDeleteRecursive(id)
+    schedulePush()
     await get().loadActivities()
   },
 
@@ -86,5 +95,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         await db.activities.update(orderedIds[i], { sortOrder: i })
       }
     })
+    for (const id of orderedIds) await trackChange('activities', id, 'update')
+    schedulePush()
   },
 }))

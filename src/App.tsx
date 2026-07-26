@@ -12,6 +12,7 @@ import { useActivityStore } from './stores/activityStore'
 import { useEventStore } from './stores/eventStore'
 import { useUIStore } from './stores/uiStore'
 import { useAuthStore } from './stores/authStore'
+import { useSyncStore } from './stores/syncStore'
 import { seedDatabase } from './db/seed'
 
 function AppContent() {
@@ -27,8 +28,16 @@ function AppContent() {
         await loadActivities()
         await loadTodayEvents()
         await loadEvents()
-        // Initialize auth (check for existing session)
+        // Initialize auth (check for a stored access key)
         await initAuth()
+        // If signed in, pull remote changes (e.g. events logged from the lock-screen Shortcut)
+        // then refresh the local views.
+        if (useAuthStore.getState().user) {
+          await useSyncStore.getState().sync()
+          await loadActivities()
+          await loadTodayEvents()
+          await loadEvents()
+        }
       } catch (error) {
         console.error('Failed to initialize app:', error)
         showError('Failed to load data. Please refresh.')

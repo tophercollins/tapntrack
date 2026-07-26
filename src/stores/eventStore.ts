@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { db } from '../db/database'
 import { getStartOfDay } from '../utils/date'
+import { trackChange } from '../services/syncService'
+import { schedulePush } from '../lib/pushSync'
 import type { Event } from '../types'
 
 interface EventState {
@@ -46,6 +48,8 @@ export const useEventStore = create<EventState>((set) => ({
       timestamp: new Date(),
     }
     await db.events.add(event)
+    await trackChange('events', event.id, 'create')
+    schedulePush()
     // Use functional update to avoid race conditions with concurrent adds
     set((state) => ({
       events: [event, ...state.events],
@@ -56,6 +60,8 @@ export const useEventStore = create<EventState>((set) => ({
 
   deleteEvent: async (id: string) => {
     await db.events.delete(id)
+    await trackChange('events', id, 'delete')
+    schedulePush()
     // Use functional update to avoid race conditions
     set((state) => ({
       events: state.events.filter((e) => e.id !== id),
