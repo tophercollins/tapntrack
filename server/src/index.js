@@ -27,6 +27,12 @@ app.use((req, res, next) => {
   next()
 })
 
+// Request logging — method, path, status (visible via `journalctl -u tapntrack-api`).
+app.use((req, res, next) => {
+  res.on('finish', () => console.log(`${req.method} ${req.path} -> ${res.statusCode}`))
+  next()
+})
+
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }))
 
 // Auth gate for everything under /api

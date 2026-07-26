@@ -21,56 +21,57 @@ npm run build
 npm run preview  # Preview the production build
 ```
 
-## Mobile Apps (iOS/Android)
+## Native iOS app (build on your Mac)
 
-This app uses [Capacitor](https://capacitorjs.com) to build native iOS and Android apps from the same codebase.
+> **Continue-from-here for the Mac.** The web app + self-hosted backend are already done and live at
+> `https://tapntrack.annanil.com` (backend details in `RUNBOOK.md`). This section takes a fresh
+> clone to the app running natively on your iPhone via [Capacitor](https://capacitorjs.com). The
+> native lock-screen roadmap is at the bottom.
 
-### Prerequisites
+### Prerequisites (Mac)
+- **Xcode** (Mac App Store — large download) + Command Line Tools: `xcode-select --install`
+- **CocoaPods**: `sudo gem install cocoapods` (or `brew install cocoapods`)
+- **Node 20+**, and an **Apple ID** (the free tier is fine to run on your own device)
 
-**iOS** (macOS only):
-- Xcode 14+ from the Mac App Store
-- Xcode Command Line Tools: `xcode-select --install`
-- CocoaPods: `sudo gem install cocoapods`
-
-**Android**:
-- [Android Studio](https://developer.android.com/studio)
-- Android SDK (installed via Android Studio)
-- Java 17+
-
-### Setup Native Platforms
-
+### Phase 1 — run the app natively (from a fresh clone)
 ```bash
-# Add iOS platform (macOS only)
-npx cap add ios
+git clone https://github.com/tophercollins/tapntrack.git
+cd tapntrack
+npm install
+npm run build          # bakes VITE_API_URL=https://tapntrack.annanil.com (from .env)
+npx cap add ios        # first time only — generates the ios/ Xcode project
+npx cap sync ios       # copies the web build + native deps into iOS
+npx cap open ios       # opens the project in Xcode
+```
+In **Xcode**:
+1. Select the **App** target → **Signing & Capabilities** → set **Team** to your Apple ID (fixes code signing). If Xcode says the bundle id is taken, change it (e.g. `com.tophercollins.tapntrack`).
+2. Plug in your iPhone, choose it as the run destination (top bar), press **▶ Run**.
+3. First launch on the phone: **Settings → General → VPN & Device Management** → trust your developer certificate.
 
-# Add Android platform
+The app runs natively against `https://tapntrack.annanil.com/api`. In the app: **Settings → Connect** → paste your access key (the VPS's `server/.env` `API_SECRET`).
+
+### After Phase 1 — hand back for the native features
+Once it runs, **commit the generated `ios/` project and push** so the native lock-screen code can be built on top of it:
+```bash
+git add ios && git commit -m "Add generated iOS project" && git push
+```
+Then say it's running — that unblocks Phase 2+.
+
+### Native lock-screen roadmap
+| Phase | Feature | iOS tech |
+|-------|---------|----------|
+| 1 (setup) | App running natively on device | Capacitor |
+| 2 | One-tap log from Lock Screen / Control Center | App Intents + WidgetKit control |
+| 3 | Bouldering multi-step picker (grade → outcome → hang) | App Intents flow |
+| 4 | Timer with pause, live on the Lock Screen | Live Activities (ActivityKit) |
+
+Every phase talks to the same `/api` — the backend is finished.
+
+### Android (later, not the current focus)
+```bash
 npx cap add android
+npm run android   # opens Android Studio
 ```
-
-### Build and Run
-
-```bash
-# iOS - builds and opens Xcode
-npm run ios
-
-# Android - builds and opens Android Studio
-npm run android
-
-# Just sync web code to native projects
-npm run sync
-```
-
-### Running on Device
-
-**iOS**:
-1. Open `ios/App/App.xcworkspace` in Xcode
-2. Select your device/simulator
-3. Click Run
-
-**Android**:
-1. Open the `android` folder in Android Studio
-2. Select your device/emulator
-3. Click Run
 
 ## Project Structure
 
@@ -101,11 +102,10 @@ src/
 
 | Type | Flow | Example |
 |------|------|---------|
-| `tap` | Tap → Done | Vitamins, Coffee |
-| `sub-select` | Tap → Pick option → Done | Bouldering grades |
-| `number` | Tap → Enter number → Done | Glasses of water |
-| `sub-number` | Tap → Pick option → Enter number → Done | Weight lifting reps |
-| `duration` | Tap → Timer runs → Stop → Done | Meditation |
+| `tap` | Tap → logged | Vitamins |
+| `number` | Tap → enter a number | Pressups (reps), water (glasses) |
+| `duration` | Tap → timer, or enter minutes | Meditation |
+| `custom` | Tap → pick your defined options | Bouldering (grade / outcome / hang) |
 
 ## Scripts
 
