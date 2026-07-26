@@ -30,8 +30,10 @@ npm run preview  # Preview the production build
 
 ### Prerequisites (Mac)
 - **Xcode** (Mac App Store — large download) + Command Line Tools: `xcode-select --install`
-- **CocoaPods**: `sudo gem install cocoapods` (or `brew install cocoapods`)
 - **Node 20+**, and an **Apple ID** (the free tier is fine to run on your own device)
+
+> CocoaPods is **not** needed — Capacitor 8 uses Swift Package Manager, and `npx cap add ios`
+> writes a `Package.swift` instead of a Podfile.
 
 ### Phase 1 — run the app natively (from a fresh clone)
 ```bash
@@ -39,10 +41,12 @@ git clone https://github.com/tophercollins/tapntrack.git
 cd tapntrack
 npm install
 npm run build          # bakes VITE_API_URL=https://tapntrack.annanil.com (from .env)
-npx cap add ios        # first time only — generates the ios/ Xcode project
 npx cap sync ios       # copies the web build + native deps into iOS
 npx cap open ios       # opens the project in Xcode
 ```
+`ios/` is committed, so `npx cap add ios` is **not** needed — running it against an existing
+project is a no-op at best. Re-run `npx cap sync ios` after every `npm run build`, or use
+`npm run ios` which chains build → sync → open.
 In **Xcode**:
 1. Select the **App** target → **Signing & Capabilities** → set **Team** to your Apple ID (fixes code signing). If Xcode says the bundle id is taken, change it (e.g. `com.tophercollins.tapntrack`).
 2. Plug in your iPhone, choose it as the run destination (top bar), press **▶ Run**.
@@ -50,12 +54,28 @@ In **Xcode**:
 
 The app runs natively against `https://tapntrack.annanil.com/api`. In the app: **Settings → Connect** → paste your access key (the VPS's `server/.env` `API_SECRET`).
 
-### After Phase 1 — hand back for the native features
-Once it runs, **commit the generated `ios/` project and push** so the native lock-screen code can be built on top of it:
+### Troubleshooting — white screen / "failed to launch"
+Xcode's **▶ Run** can install a broken copy and fail with
+`Simulator device failed to launch … NSPOSIXErrorDomain Code 3 "No such process"`, after which
+that installed app opens to a **blank white screen** on every launch. This is an Xcode
+install/launch fault, **not** an app bug — the same build installed by hand runs fine.
+
+Fix: delete the app (long-press its icon in the Simulator → Remove App) and run again. Or
+reinstall the already-built product directly:
 ```bash
-git add ios && git commit -m "Add generated iOS project" && git push
+xcrun simctl uninstall booted com.tapntrack.app
+xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/App-*/Build/Products/Debug-iphonesimulator/App.app
+xcrun simctl launch booted com.tapntrack.app
+xcrun simctl io booted screenshot /tmp/shot.png   # verify it actually rendered
 ```
-Then say it's running — that unblocks Phase 2+.
+Before blaming the native shell, confirm the web build itself is sound with `cd probe && npm run
+probe` — if the probe suite is green, the bundle renders and the fault is native-side.
+
+### Phase 1 status — DONE (2026-07-26)
+The generated `ios/` project is **committed**, and the app is verified running natively on the
+iOS Simulator: renders, logs a tap event, and the event **survives a cold relaunch** (persisted to
+IndexedDB). Still unverified: signing with a real Apple ID and running on a physical device.
+That unblocks Phase 2+.
 
 ### Native lock-screen roadmap
 | Phase | Feature | iOS tech |

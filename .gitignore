@@ -17,5 +17,6 @@ Thumbs.db
 .env.local
 
 # Capacitor
-ios/
+# ios/ is committed — Phase 2 (Lock Screen App Intents) adds native Swift on top of it.
+# Its generated/build artefacts are excluded by ios/.gitignore (Capacitor-generated).
 android/
