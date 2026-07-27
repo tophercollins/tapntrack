@@ -2,6 +2,10 @@
 
 Frictionless habit and activity tracking. Open the app, tap an emoji, done.
 
+> ### 👉 Picking this up after a break? Read **[NEXT-STEPS.md](NEXT-STEPS.md)** first.
+> It has the current state, the one decision that's blocking progress (getting it onto a real
+> iPhone), and the next piece of code work with exact file:line anchors.
+
 ## Quick Start
 
 ```bash
@@ -44,9 +48,10 @@ npm run build          # bakes VITE_API_URL=https://tapntrack.annanil.com (from 
 npx cap sync ios       # copies the web build + native deps into iOS
 npx cap open ios       # opens the project in Xcode
 ```
-`ios/` is committed, so `npx cap add ios` is **not** needed — running it against an existing
-project is a no-op at best. Re-run `npx cap sync ios` after every `npm run build`, or use
-`npm run ios` which chains build → sync → open.
+`ios/` is committed, so **never run `npx cap add ios`**. It does not no-op against an existing
+platform — it exits 1 with *"first remove `ios/App` … your native project will be completely
+removed"*, and following that advice would delete tracked source. Re-run `npx cap sync ios` after
+every `npm run build`, or use `npm run ios`, which chains build → sync → open.
 In **Xcode**:
 1. Select the **App** target → **Signing & Capabilities** → set **Team** to your Apple ID (fixes code signing). If Xcode says the bundle id is taken, change it (e.g. `com.tophercollins.tapntrack`).
 2. Plug in your iPhone, choose it as the run destination (top bar), press **▶ Run**.
@@ -137,3 +142,21 @@ src/
 | `npm run ios` | Build and open in Xcode |
 | `npm run android` | Build and open in Android Studio |
 | `npm run sync` | Sync web build to native projects |
+| `npm run icons` | Regenerate every app icon + splash from `public/icon.svg` (needs `cd probe && npm install`) |
+
+## Icons
+
+All icons derive from the single source `public/icon.svg` — **never hand-edit the generated PNGs**.
+Run `npm run icons` after changing it. The generator handles two iOS rules that are easy to miss:
+iOS **ignores SVG** for `apple-touch-icon`, and **rejects app icons carrying an alpha channel**, so
+web icons keep transparency while every iOS-facing target is flattened onto the brand colour and
+asserted alpha-free before it is written.
+
+## Testing
+
+`probe/` boots the real production build and drives it headless — it catches white screens,
+overflow and broken flows that `tsc` and `vite build` cannot. See `probe/README.md`.
+
+```bash
+cd probe && npx playwright test    # expect: PASS (36) FAIL (0)
+```
